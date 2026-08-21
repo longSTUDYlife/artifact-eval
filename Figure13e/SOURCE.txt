@@ -1,0 +1,22 @@
+Figure 13(e) Env1 sensing trajectory (8RX).
+Printed N / median / 90th match Fig. 13(f) in the paper.
+
+Same env1 CIR as Figure10c (packed once, hardlinked):
+  curve_raw_npy/Figure13e/8RX-ULA/raw.npz  →  Figure10c/8RX-ULA/raw.npz
+  Realtime_collection/MultiPort/202603122
+  antenna_data_port*_8ports_sensing_env1_{angle}_{times}.csv
+  Sync: firstPathAmp2 (PacketType==1)
+  Peak search min_range = 2.05 m
+  keep_frames.csv: paper Env-1 167 Hz valid-track frames (N=3177)
+
+Reprocess (Docker / no MATLAB):
+  python process_from_cir.py
+  python plot_figure13e.py --reprocess
+  → aoa_estimates/aoa_estimates_8port_{angle}.csv
+  → track_errors_8port.csv
+  → figure13e.png / figure13e.pdf
+  prints N / median / 90th / RMSE (Fig. 13(f) numbers)
+  Paper: N=3177, median=6.4 cm, 90th=17.4 cm
+
+MATLAB fallback:
+  cd Figures/Done/Figure13e; run_figure13e

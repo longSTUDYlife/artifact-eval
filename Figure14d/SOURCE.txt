@@ -1,0 +1,27 @@
+Figure 14(d) HAR confusion matrices (RD / RD+RA / RD+RA+RE)
+
+Split: file, seed=42, val_ratio=0.15, test_ratio=0.15
+  6 files (filtered/1.mat … 6.mat) → train 4 / val 1 / test 1
+  TRAIN: 1.mat 2.mat 5.mat 6.mat
+  VAL:   3.mat
+  TEST:  4.mat
+
+Action names in .mat are slam_L / slam_R; figure labels slap_L / slap_R.
+
+Plot only (packed test CMs, no GPU):
+  python plot_figure14d.py
+  paper acc: RD 0.5119 / RD+RA 0.8373 / RD+RA+RE 0.9898
+
+Retrain then plot (PyTorch; GPU recommended):
+  FIGURE14D_TRAIN=1 python train_and_plot.py
+  python plot_figure14d.py --from_runs runs
+
+Docker (from Figures/Done):
+  # GPU retrain (linux/amd64)
+  docker build --platform linux/amd64 --build-arg USE_CUDA=1 -t done-figures-artifact .
+  docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
+    -v "$PWD/outputs:/artifact/outputs" done-figures-artifact
+
+  # CPU retrain (slow; works on Mac ARM image too)
+  docker run -e FIGURE14D_TRAIN=1 --rm \
+    -v "$PWD/outputs:/artifact/outputs" done-figures-artifact

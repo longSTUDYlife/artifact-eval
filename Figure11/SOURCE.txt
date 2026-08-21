@@ -1,0 +1,12 @@
+Figure 11 Phase quality (pooled std, rad)
+
+Packed measurements:
+  curve_raw_npy/Figure11/sensing/raw.npz
+  curve_raw_npy/Figure11/localization/raw.npz
+  curve_raw_npy/Figure11/uloc/raw.npz
+  curve_raw_npy/Figure11/dw3000/raw.npz
+
+Reprocess (Docker / no MATLAB):
+  python plot_phase_std_bar_academic.py
+  → figure11.png / figure11.pdf
+  Paper: sensing 0.078 / localization 0.112 / uloc 0.126 / DW3000 0.098 rad

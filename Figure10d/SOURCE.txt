@@ -1,0 +1,16 @@
+Figure 10(d) Angular resolution vs. array size
+
+Raw CIR (copied into raw/; packed to curve_raw_npy/Figure10d/*/raw.npz):
+  Realtime_collection/MultiPort/20260218/square_two_corner_reflectors
+  antenna_data_port*_8ports_sensing_car_square_tworef_0_3.csv
+  calibration.csv
+  Row-aligned; 4RX = ports 1–4, 2RX = ports 1–2.
+
+Reprocess (Docker / no MATLAB):
+  python process_from_cir.py
+  python plot_figure10d.py --reprocess
+  → angle_amplitude_{2,4,8}port.csv
+  Window 14, range ≈ 3.18 m
+
+MATLAB fallback:
+  cd Figures/Done/Figure10d; run_figure10d

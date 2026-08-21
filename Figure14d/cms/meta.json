@@ -1,0 +1,52 @@
+{
+  "split_mode": "file",
+  "seed": 42,
+  "val_ratio": 0.15,
+  "test_ratio": 0.15,
+  "train_files": [
+    "6.mat",
+    "5.mat",
+    "2.mat",
+    "1.mat"
+  ],
+  "val_files": [
+    "3.mat"
+  ],
+  "test_files": [
+    "4.mat"
+  ],
+  "labels": [
+    "bow",
+    "slap_L",
+    "slap_R",
+    "smash",
+    "volleyball"
+  ],
+  "mat_action_names": [
+    "bow",
+    "slam_L",
+    "slam_R",
+    "smash",
+    "volleyball"
+  ],
+  "panels": [
+    {
+      "key": "rd",
+      "title": "RD",
+      "cm": "rd.npy",
+      "acc": 0.511864406779661
+    },
+    {
+      "key": "rd+ra",
+      "title": "RD + RA",
+      "cm": "rd_ra.npy",
+      "acc": 0.8372881355932204
+    },
+    {
+      "key": "rd+ra+re",
+      "title": "RD + RA + RE",
+      "cm": "rd_ra_re.npy",
+      "acc": 0.9898305084745763
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+Figure 12 SCR dynamic range vs range
+
+Packed per-window samples (before sliding-window aggregation):
+  curve_raw_npy/Figure12/SCR/raw.npz
+  curve_raw_npy/Figure12/noSCR/raw.npz
+  optional CSV: dynamic_range_all_groups.csv
+
+Reprocess (Docker / no MATLAB):
+  python plot_dynamic_range_academic.py
+  → figure12.png / figure12.pdf
+  Paper: with-SCR mean ≈ 26.6 dB, no-SCR mean ≈ 4.0 dB

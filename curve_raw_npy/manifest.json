@@ -1,0 +1,219 @@
+{
+  "root": "curve_raw_npy",
+  "file_name": "raw.npz",
+  "curves": [
+    {
+      "figure": "Figure10ab",
+      "curve": "8RX-ULA",
+      "file": "Figure10ab/8RX-ULA/raw.npz",
+      "bytes": 96033277,
+      "keys": [
+        "angles_deg",
+        "cir",
+        "first_path",
+        "n_frames",
+        "note",
+        "ports",
+        "rx_pream_count",
+        "sequence"
+      ]
+    },
+    {
+      "figure": "Figure10ab",
+      "curve": "4RX-ULA",
+      "file": "Figure10ab/4RX-ULA/raw.npz",
+      "bytes": 96033277,
+      "note": "same file as 8RX-ULA/raw.npz"
+    },
+    {
+      "figure": "Figure10ab",
+      "curve": "2RX-ULA",
+      "file": "Figure10ab/2RX-ULA/raw.npz",
+      "bytes": 96033277,
+      "note": "same file as 8RX-ULA/raw.npz"
+    },
+    {
+      "figure": "Figure10ab",
+      "curve": "DW3000",
+      "file": "Figure10ab/DW3000/raw.npz",
+      "bytes": 32998,
+      "keys": [
+        "angle_deg",
+        "angles_deg",
+        "frame",
+        "n_angle_deg",
+        "n_frame",
+        "n_pdoa_raw",
+        "pdoa_raw"
+      ]
+    },
+    {
+      "figure": "Figure12",
+      "curve": "SCR",
+      "file": "Figure12/SCR/raw.npz",
+      "bytes": 16509,
+      "keys": [
+        "DR_dB",
+        "group",
+        "note",
+        "range_m"
+      ]
+    },
+    {
+      "figure": "Figure12",
+      "curve": "noSCR",
+      "file": "Figure12/noSCR/raw.npz",
+      "bytes": 16865,
+      "keys": [
+        "DR_dB",
+        "group",
+        "note",
+        "range_m"
+      ]
+    },
+    {
+      "figure": "Figure11",
+      "curve": "sensing",
+      "file": "Figure11/sensing/raw.npz",
+      "bytes": 10292293,
+      "keys": [
+        "port1_cir",
+        "port1_first_path",
+        "port1_rx_pream_count",
+        "port1_sequence",
+        "port2_cir",
+        "port2_first_path",
+        "port2_rx_pream_count",
+        "port2_sequence"
+      ]
+    },
+    {
+      "figure": "Figure11",
+      "curve": "localization",
+      "file": "Figure11/localization/raw.npz",
+      "bytes": 8206575,
+      "keys": [
+        "angles_deg",
+        "cir",
+        "first_path",
+        "n_frames",
+        "note",
+        "ports",
+        "rx_pream_count",
+        "sequence"
+      ]
+    },
+    {
+      "figure": "Figure11",
+      "curve": "uloc",
+      "file": "Figure11/uloc/raw.npz",
+      "bytes": 2183551,
+      "keys": [
+        "cir_fp",
+        "note",
+        "phase_rel_rad",
+        "source_log"
+      ]
+    },
+    {
+      "figure": "Figure11",
+      "curve": "dw3000",
+      "file": "Figure11/dw3000/raw.npz",
+      "bytes": 1702,
+      "keys": [
+        "0d_0m_pdoa_raw_deg",
+        "10d_0m_pdoa_raw_deg"
+      ]
+    },
+    {
+      "figure": "Figure10c",
+      "curve": "8RX-ULA",
+      "file": "Figure10c/8RX-ULA/raw.npz",
+      "bytes": 133284040,
+      "keys": [
+        "angles_deg",
+        "calib",
+        "cir",
+        "first_path",
+        "first_path_amp2",
+        "n_frames",
+        "note",
+        "packet_type",
+        "ports",
+        "rx_pream_count",
+        "trials"
+      ]
+    },
+    {
+      "figure": "Figure10c",
+      "curve": "4RX-ULA",
+      "file": "Figure10c/4RX-ULA/raw.npz",
+      "bytes": 133284040,
+      "note": "same file as 8RX-ULA/raw.npz"
+    },
+    {
+      "figure": "Figure10c",
+      "curve": "2RX-ULA",
+      "file": "Figure10c/2RX-ULA/raw.npz",
+      "bytes": 133284040,
+      "note": "same file as 8RX-ULA/raw.npz"
+    },
+    {
+      "figure": "Figure10d",
+      "curve": "8RX-ULA",
+      "file": "Figure10d/8RX-ULA/raw.npz",
+      "bytes": 3485894,
+      "keys": [
+        "calib",
+        "cir",
+        "first_path",
+        "n_frames",
+        "note",
+        "ports",
+        "rx_pream_count",
+        "target_range_m",
+        "target_win"
+      ]
+    },
+    {
+      "figure": "Figure10d",
+      "curve": "4RX-ULA",
+      "file": "Figure10d/4RX-ULA/raw.npz",
+      "bytes": 3485894,
+      "note": "same file as 8RX-ULA/raw.npz"
+    },
+    {
+      "figure": "Figure10d",
+      "curve": "2RX-ULA",
+      "file": "Figure10d/2RX-ULA/raw.npz",
+      "bytes": 3485894,
+      "note": "same file as 8RX-ULA/raw.npz"
+    },
+    {
+      "figure": "Figure13a",
+      "curve": "8RX-ULA",
+      "file": "Figure13a/8RX-ULA/raw.npz",
+      "bytes": 397391386,
+      "keys": [
+        "angles_deg",
+        "cir",
+        "dists_m",
+        "first_path_amp1",
+        "n_frames",
+        "note",
+        "packet_type",
+        "ports",
+        "sequence"
+      ]
+    },
+    {
+      "figure": "Figure13e",
+      "curve": "8RX-ULA",
+      "file": "Figure13e/8RX-ULA/raw.npz",
+      "bytes": 133284040,
+      "note": "same file as 8RX-ULA/raw.npz"
+    }
+  ],
+  "n_curves": 18,
+  "total_bytes_unique": 650945090
+}

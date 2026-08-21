@@ -1,0 +1,16 @@
+Figure 13(a) Env1 localization scatter (8RX)
+
+Raw CIR (copied into raw/; packed to curve_raw_npy/Figure13a/8RX-ULA/raw.npz):
+  Realtime_collection/MultiPort/20260209
+  antenna_data_port*_8ports_concurrent_localization_accuracy_{angle}_{dist}.csv
+
+Reprocess (Docker / no MATLAB):
+  python process_from_cir.py
+  python plot_figure13a.py --reprocess
+  uses lde_cache/ if present (else extracts LDE from CIR)
+  → localization_errors_8port.csv
+  → localization_scatter_data.csv
+  → figure13a.png / figure13a.pdf
+
+MATLAB fallback:
+  cd Figures/Done/Figure13a; run_figure13a

@@ -1,0 +1,16 @@
+Figure 10(c) Angular accuracy (Sensing)
+
+Raw CIR (copied into raw/; packed to curve_raw_npy/Figure10c/*/raw.npz):
+  Realtime_collection/MultiPort/202603122
+  antenna_data_port*_8ports_sensing_env1_{angle}_{times}.csv
+  spatial_phase_avg_complex_v3_angle0.csv
+  Sync: firstPathAmp2 (PacketType==1); Sequence unused.
+
+Reprocess (Docker / no MATLAB):
+  python process_from_cir.py
+  python plot_figure10c.py --reprocess
+  → aoa_estimates/aoa_estimates_{2,4,8}port_{angle}.csv
+  → figure10c.png / figure10c.pdf
+
+MATLAB fallback:
+  cd Figures/Done/Figure10c; run_figure10c

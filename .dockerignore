@@ -1,0 +1,35 @@
+# Exclude bulky / host-only paths from the artifact image.
+# Per-curve raw packs live in curve_raw_npy/; original CIR CSVs are dropped.
+
+.venv_pack/
+**/__pycache__/
+**/*.pyc
+**/.DS_Store
+**/*.log
+!curve_raw_npy/**/*.log
+
+# Original CIR CSVs (replaced by curve_raw_npy/)
+Figure10ab/raw/
+Figure10ab/lde_cache/
+Figure10c/raw/
+Figure10d/raw/
+Figure13a/raw/
+Figure13e/raw/
+Figure11/sensing/cable_data_port1_fp_mp.csv
+Figure11/sensing/cable_data_port2_fp_mp.csv
+Figure11/localization/AoA_accuracy(Localization)/*.csv
+Figure11/localization/cable_data_*.csv
+Figure11/localization/20260803/
+Figure11/localization/20260805/
+
+# ULoc vendor venv (~250MB)
+Figure11/uloc/processing/venv/
+
+# Figure14d training artifacts (weights are produced at run time)
+Figure14d/runs/
+Figure14d/**/*.pth
+Figure14d/**/tensorboard/
+
+# Local CUDA wheel cache (optional maintainer download; not part of the artifact)
+wheels/
+.torch_wheels/

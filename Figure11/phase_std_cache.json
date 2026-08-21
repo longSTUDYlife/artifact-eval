@@ -1,0 +1,30 @@
+{
+  "results": {
+    "sensing": {
+      "std_rad": 0.07840415275744923,
+      "n": 1998,
+      "detail": "cable_data_port1_fp_mp.csv+cable_data_port2_fp_mp.csv, aligned frames 7000-9000"
+    },
+    "dw3000": {
+      "std_rad": 0.09780703670077176,
+      "n": 1000,
+      "detail": "[('0d_0m', 500, 0.10648231322302963), ('10d_0m', 500, 0.0883918582305521)]"
+    },
+    "uloc": {
+      "std_rad": 0.1261365589,
+      "n": 18100,
+      "detail": "antenna 1 vs 0 on uloc_zero log"
+    },
+    "localization": {
+      "std_rad": 0.111647,
+      "n": 1103,
+      "detail": "PortPair=[4,5], aoa=-40:10:40"
+    }
+  },
+  "plot_values": {
+    "sensing": 0.07840415275744923,
+    "localization": 0.111647,
+    "uloc": 0.1261365589,
+    "dw3000": 0.09780703670077176
+  }
+}
