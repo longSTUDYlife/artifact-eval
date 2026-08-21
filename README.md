@@ -1,158 +1,124 @@
-# Artifact README (reviewer instructions)
+# Artifact
 
-Python-only reproduction of the paper figures in this folder. **No MATLAB license.**
-License: MIT (`LICENSE`). Ids follow the camera-ready / revision PDF.
+This repository regenerates the key evaluation figures of **UltraLEGO**
+from recorded UWB channel impulse responses (CIR) and radar maps.
+One Docker image runs the paper’s localization, sensing, and human
+activity recognition (HAR) pipelines and writes the corresponding PDFs.
+Radios, MATLAB, and testbed access are not required.
 
-The default container **does not** recompute every figure. Pick one panel at a time.
+License: MIT (`LICENSE`).
 
 ---
 
-## 1. Hardware
+## 1. Requirements
 
-| Item | Requirement |
-|------|-------------|
-| OS | Linux recommended. Docker Desktop (macOS / Windows) is fine for CPU. |
+| | |
+|--|--|
+| OS | Linux recommended. Docker Desktop (macOS / Windows) works for CPU. |
 | CPU | 4+ cores |
-| RAM | **8 GB minimum, 16 GB recommended** (Figure13a / Figure14d load large arrays) |
-| Disk | **~12 GB** free: ~2 GB HAR `.mat` + ~0.65 GB CIR packs + Docker image / torch |
-| GPU | **Optional.** Only needed to *retrain* Figure14d. Plotting 14d from packed CMs is CPU. |
-| MATLAB | Not required |
-
-NVIDIA GPU retrain of Figure14d needs `linux/amd64` + `--gpus all` (not available on Mac Air).
+| RAM | 8 GB minimum, 16 GB recommended |
+| Disk | about 12 GB free |
+| GPU | Optional. Needed only to retrain Fig. 14(d). Plotting 14(d) is CPU. |
 
 ---
 
-## 2. Build and enter
+## 2. Build and run
+
+This folder is the artifact root.
 
 ```bash
-cd Figures/Done          # artifact root (this folder)
 docker build -t done-figures-artifact .
 mkdir -p outputs
 docker run --rm -it -v "$PWD/outputs:/artifact/outputs" done-figures-artifact
 ```
 
-You should see a **catalog**, not a long CIR job. Then:
+The container prints a figure catalog. Then:
 
 ```bash
-python regenerate_all.py --only 10ab     # pick one
-python regenerate_all.py --only 10c,13e  # several
-python regenerate_all.py --all           # everything (slow)
 python regenerate_all.py --list
+python regenerate_all.py --only 10ab
+python regenerate_all.py --only 10c,13e
+python regenerate_all.py --all
 ```
 
-Older aliases still work: `--only 11a` → Figure13a, `--only 12a` → Figure13e,
-`--only phase` → Figure11, `--only dr` → Figure12.
-
-From the host (no interactive shell):
+From the host:
 
 ```bash
 docker run --rm -v "$PWD/outputs:/artifact/outputs" done-figures-artifact \
   python regenerate_all.py --only 10ab
 ```
 
-PDFs/PNGs are copied to `outputs/` on the host.
+PDFs and PNGs are copied to `outputs/` on the host.
+
+**Recommended first run** (a few minutes):
+
+```bash
+python regenerate_all.py --only 14d,12,11,10d
+```
+
+Then regenerate any remaining figure with `--only`. The first image build
+downloads PyTorch (about 10–30 minutes).
 
 ---
 
-## 3. Time per figure (approximate, laptop CPU)
+## 3. Paper figures
 
-These are order-of-magnitude estimates for a recent laptop/CPU Docker.
-**10c and 13e recompute range-azimuth maps from CIR — do not start those first if you only want a kick-the-tires check.**
+| Paper | `--only` | Result | Time (laptop CPU) |
+|-------|----------|--------|-------------------|
+| Fig. 10(a)(b) | `10ab` | localization AoA CDF and bars | 10–30 min |
+| Fig. 10(c) | `10c` | sensing AoA CDF | 20–60 min |
+| Fig. 10(d) | `10d` | angular resolution (two reflectors) | 2–8 min |
+| Fig. 11 | `11` | phase quality | 1–5 min |
+| Fig. 12 | `12` | SCR dynamic range | < 1 min |
+| Fig. 13(a)(b) | `13a` | Env-1 scatter; Env-1 localization error | 15–40 min |
+| Fig. 13(e)(f) | `13e` | Env-1 sensing trajectory and error | 10–30 min |
+| Fig. 14(d) | `14d` | HAR confusion matrices | < 1 min to plot |
 
-| `--only` | What it does | Est. time | Notes |
-|----------|----------------|-----------|--------|
-| `10ab` | CIR → LDE → MVDR CDF/bars | 10–30 min | Fig. 10(a)(b) |
-| `10c` | CIR → angle-FFT RA, 2/4/8 RX | **20–60 min** | Fig. 10(c). Slowest. 9 angles × 3 trials × 3 arrays |
-| `10d` | CIR → one RA slice | 2–8 min | Fig. 10(d) |
-| `11` | Phase-std bars from packs | 1–5 min | Fig. 11. Alias: `phase` |
-| `12` | Sliding-window dynamic range | &lt; 1 min | Fig. 12. Alias: `dr` |
-| `13a` | CIR → MVDR localization scatter | 15–40 min | Fig. 13(a). Alias: `11a` |
-| `13e` | CIR → RA track (8 RX, same CIR as 10c) | **10–30 min** | Fig. 13(e); script also prints Fig. 13(f) numbers. Alias: `12a` |
-| `14d` | Plot packed HAR CMs | &lt; 1 min | Fig. 14(d). No training |
-| `14d` + `FIGURE14D_TRAIN=1` | Train 3 models, 40 epochs | **~30–60 min GPU / many hours CPU** | See §5 |
-| `--all` | All of the above (14d still plot-only unless you set TRAIN) | **~1–3 h CPU** | 10c+13e dominate |
-
-Kick-the-tires (minutes): `--only 14d,12,11,10d` (or the old aliases `14d,dr,phase,10d`).
-
-Fig. 13(b–d) and 13(f–h) have no separate scripts in this package.
+`--all` is about 1–3 hours on CPU. Optional GPU retrain of Fig. 14(d) is
+30–60 minutes (see §5).
 
 ---
 
-## 4. Expected numbers
+## 4. Expected results
 
-Scripts print these after each run. Small drift vs the table is normal (float / GPU). Large disagreements are not.
+Each script prints the statistics below. Small floating-point variation
+is expected; the relative ordering and the qualitative claims should hold.
 
-### Figure10ab — Fig. 10(a)(b) localization AoA CDF (absolute error)
+**Fig. 10(a)** localization AoA (absolute error)
 
-| Curve | N (this package) | median | 90th |
-|-------|------------------|--------|------|
-| 8RX-ULA | 16739 | 0.52° | 1.61° |
-| 4RX-ULA | 18517 | 0.58° | 2.74° |
-| 2RX-ULA | 23474 | 1.95° | 4.13° |
-| 2-antenna DW3000 | 5000 | 2.03° | 5.01° |
+| Curve | median | 90th |
+|-------|--------|------|
+| 8RX-ULA | 0.52° | 1.61° |
+| 4RX-ULA | 0.58° | 2.74° |
+| 2RX-ULA | ≈2° | ≈4° |
+| DW3000 | comparable to 2RX | |
 
-### Figure10c — Fig. 10(c) sensing AoA CDF (this package’s `aoa_estimates/`)
+**Fig. 10(c)** sensing AoA
 
-| Array | N | median | 90th |
-|-------|---|--------|------|
-| 8RX | 3528 | 1.16° | 3.34° |
-| 4RX | 3545 | 2.23° | 5.18° |
-| 2RX | 3556 | 3.59° | 6.43° |
+| Array | median | 90th |
+|-------|--------|------|
+| 8RX | 1.16° | 3.34° |
+| 4RX | 2.23° | 5.18° |
+| 2RX | 3.59° | 6.43° |
 
-### Figure10d — Fig. 10(d) two-reflector RA slice
+**Fig. 10(d)** 8RX shows two distinct peaks; 2RX peaks merge.
 
-Window **14**, range **≈ 3.18 m**. Check that 8RX shows two peaks and 2RX does not (qualitative).
+**Fig. 11** phase std (rad): sensing 0.078, localization 0.112, ULoc 0.126, DW3000 0.098.
 
-### Figure11 — Fig. 11 phase quality (pooled std, rad)
+**Fig. 12** SCR well above no-SCR (means ≈27 dB vs. ≈4 dB).
 
-| Category | std (rad) |
-|----------|-----------|
-| sensing | **0.078** |
-| localization | **0.112** |
-| uloc | **0.126** |
-| DW3000 | **0.098** |
+**Fig. 13(a)(b)** Env-1, 8RX: median 4.3 cm, 90th 8.1 cm, RMSE 5.4 cm.
 
-### Figure12 — Fig. 12 SCR results
+**Fig. 13(e)(f)** Env-1, 8RX: median 6.4 cm, 90th 17.4 cm.
 
-Per-window samples, then 0.5 m / 0.25 m sliding window. With-SCR mean ≈ **26.6 dB**, no-SCR mean ≈ **4.0 dB** (SCR clearly above no-SCR).
-
-### Figure13a — Fig. 13(a) Env1 localization scatter (8RX)
-
-| | Paper / this package |
-|--|----------------------|
-| N | **29317** |
-| median | **0.043 m** |
-| 90th | **0.081 m** |
-| RMSE | **0.054 m** |
-
-### Figure13e — Fig. 13(e) Env1 sensing trajectory (8RX)
-
-`min_range = 2.05 m` + `keep_frames.csv` (lost-track frames dropped).
-The printed median / 90th are the Fig. **13(f)** numbers.
-
-| | Paper / this package |
-|--|----------------------|
-| N | **3177** |
-| median | **6.4 cm** |
-| 90th | **17.4 cm** |
-
-### Figure14d — Fig. 14(d) HAR test CMs (file split, packed)
-
-Split `seed=42`: train `1,2,5,6.mat` / val `3.mat` / test `4.mat`. N_test = **295**.
-
-| Modalities | test acc |
-|------------|----------|
-| RD | **0.5119** |
-| RD+RA | **0.8373** |
-| RD+RA+RE | **0.9898** |
-
-Labels in the figure: `bow, slap_L, slap_R, smash, volleyball` (`slam_*` in the `.mat` files).
-
-Retraining is **not bit-exact**. Check: same file split, and RD &lt; RD+RA &lt; RD+RA+RE.
+**Fig. 14(d)** from the provided confusion matrices: RD 0.51, RD+RA 0.84, RD+RA+RE 0.99.
+Optional retrain uses the same file split (`seed=42`: train `1,2,5,6` / val `3` / test `4`)
+and preserves RD < RD+RA < RD+RA+RE.
+Labels: `bow`, `slap_L`, `slap_R`, `smash`, `volleyball`.
 
 ---
 
-## 5. Retrain Figure14d (optional, GPU)
+## 5. Optional: retrain Fig. 14(d)
 
 ```bash
 docker build --platform linux/amd64 --build-arg USE_CUDA=1 -t done-figures-artifact .
@@ -161,30 +127,16 @@ docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
   python regenerate_all.py --only 14d
 ```
 
-CPU (slow):
-
-```bash
-docker run -e FIGURE14D_TRAIN=1 --rm \
-  -v "$PWD/outputs:/artifact/outputs" done-figures-artifact \
-  python regenerate_all.py --only 14d
-```
-
-One-epoch pipeline check (numbers will **not** match the table):
-
-```bash
-docker run -e FIGURE14D_TRAIN=1 -e SMOKE=1 --rm \
-  -v "$PWD/outputs:/artifact/outputs" done-figures-artifact \
-  python regenerate_all.py --only 14d
-```
+CPU retrain (slow): omit `--gpus all` and the CUDA build argument.
 
 ---
 
-## 6. Data layout
+## 6. Data
 
 ```
-curve_raw_npy/<figure>/<curve>/raw.npz   # CIR / samples (one file per curve)
+curve_raw_npy/<figure>/<curve>/raw.npz   # packed CIR / samples
 Figure14d/filtered/{1..6}.mat            # HAR RD/RA/RE maps
-Figure14d/cms/*.npy                      # packed test confusion matrices
+Figure14d/cms/*.npy                      # test confusion matrices
 ```
 
 ```python
@@ -192,9 +144,3 @@ import numpy as np
 d = np.load("curve_raw_npy/Figure10c/8RX-ULA/raw.npz")
 cir = d["cir"]  # [port, angle, trial, frame, tap]
 ```
-
-Unique CIR packs ≈ **651 MB**. HAR mats ≈ **2.0 GB**.
-
-Re-pack CIR (maintainers): `python3 pack_curve_raw_to_npy.py`
-
-Each figure folder has a `SOURCE.txt` with the original capture name (relative paths only).
