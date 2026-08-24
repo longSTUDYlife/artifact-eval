@@ -23,9 +23,12 @@ from pathlib import Path
 
 import numpy as np
 
+from extra_env_config import LOC_ENVS, SENSE_ENVS, loc_filename, sense_filename
+
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "curve_raw_npy"
 RAW_NAME = "raw.npz"  # one compressed NumPy archive per curve folder
+PORTS_8 = list(range(1, 9))
 
 
 def _save_curve(figure: str, curve: str, arrays: dict, manifest: dict) -> Path:
@@ -51,6 +54,22 @@ def _save_curve(figure: str, curve: str, arrays: dict, manifest: dict) -> Path:
     }
     manifest["curves"].append(info)
     print(f"  {figure}/{curve}/{RAW_NAME}  ({out.stat().st_size/1e6:.1f} MB)")
+    return out
+
+
+def _register_existing(figure: str, curve: str, manifest: dict) -> Path:
+    out = OUT / figure / curve / RAW_NAME
+    if not out.is_file():
+        raise FileNotFoundError(out)
+    info = {
+        "figure": figure,
+        "curve": curve,
+        "file": str(out.relative_to(OUT)),
+        "bytes": out.stat().st_size,
+        "note": "existing pack kept",
+    }
+    manifest["curves"].append(info)
+    print(f"  {figure}/{curve}/{RAW_NAME}  (kept, {out.stat().st_size/1e6:.1f} MB)")
     return out
 
 
@@ -370,20 +389,151 @@ def pack_figure10c(manifest: dict) -> None:
     _hardlink_curve(fig, "2RX-ULA", src, manifest)
 
 
+def _stack_loc_cells(env: int) -> dict:
+    cfg = LOC_ENVS[env]
+    cells = list(cfg["cells"])
+    blocks = {}
+    max_frames = 0
+    n_taps = None
+    for port in PORTS_8:
+        for ang, dist in cells:
+            path = loc_filename(env, port, ang, dist)
+            if not path.is_file():
+                raise FileNotFoundError(path)
+            print(f"    {path.name}")
+            blk = _load_cir_csv(path)
+            blocks[(port, ang, dist)] = blk
+            max_frames = max(max_frames, blk["cir"].shape[0])
+            if n_taps is None:
+                n_taps = int(blk["cir"].shape[1])
+    n_cells = len(cells)
+    cir = np.zeros((len(PORTS_8), n_cells, max_frames, n_taps), dtype=np.complex64)
+    sequence = np.zeros((len(PORTS_8), n_cells, max_frames), dtype=np.float64)
+    ptype = np.zeros_like(sequence, dtype=np.int32)
+    amp1 = np.zeros_like(sequence)
+    n_frames = np.zeros((len(PORTS_8), n_cells), dtype=np.int32)
+    for ip, port in enumerate(PORTS_8):
+        for ic, (ang, dist) in enumerate(cells):
+            blk = blocks[(port, ang, dist)]
+            n = blk["cir"].shape[0]
+            n_frames[ip, ic] = n
+            cir[ip, ic, :n] = blk["cir"]
+            sequence[ip, ic, :n] = blk["sequence"]
+            if "packet_type" in blk:
+                ptype[ip, ic, :n] = blk["packet_type"]
+            if "first_path_amp1" in blk:
+                amp1[ip, ic, :n] = blk["first_path_amp1"]
+    return {
+        "cir": cir,
+        "n_frames": n_frames,
+        "ports": np.asarray(PORTS_8, dtype=np.int32),
+        "angles_deg": np.asarray([c[0] for c in cells], dtype=np.float64),
+        "dists_m": np.asarray([c[1] for c in cells], dtype=np.float64),
+        "sequence": sequence,
+        "packet_type": ptype,
+        "first_path_amp1": amp1,
+        "phase_deg": np.asarray(cfg["phase_deg"], dtype=np.float64),
+        "paper_env": np.int32(env),
+        "note": cfg["note"],
+    }
+
+
+def _stack_sense_pairs(env: int) -> dict:
+    cfg = SENSE_ENVS[env]
+    pairs = list(cfg["pairs"])
+    blocks = {}
+    max_frames = 0
+    n_taps = None
+    for port in PORTS_8:
+        for ang, trial in pairs:
+            path = sense_filename(env, port, ang, trial)
+            if not path.is_file():
+                raise FileNotFoundError(path)
+            print(f"    {path.name}")
+            blk = _load_cir_csv(path)
+            blocks[(port, ang, trial)] = blk
+            max_frames = max(max_frames, blk["cir"].shape[0])
+            if n_taps is None:
+                n_taps = int(blk["cir"].shape[1])
+    n_pairs = len(pairs)
+    cir = np.zeros((len(PORTS_8), n_pairs, max_frames, n_taps), dtype=np.complex64)
+    first_path = np.zeros((len(PORTS_8), n_pairs, max_frames), dtype=np.float64)
+    rx_pream = np.zeros_like(first_path)
+    amp2 = np.zeros_like(first_path)
+    ptype = np.zeros((len(PORTS_8), n_pairs, max_frames), dtype=np.int32)
+    n_frames = np.zeros((len(PORTS_8), n_pairs), dtype=np.int32)
+    for ip, port in enumerate(PORTS_8):
+        for iq, (ang, trial) in enumerate(pairs):
+            blk = blocks[(port, ang, trial)]
+            n = blk["cir"].shape[0]
+            n_frames[ip, iq] = n
+            cir[ip, iq, :n] = blk["cir"]
+            if "first_path" in blk:
+                first_path[ip, iq, :n] = blk["first_path"]
+            if "rx_pream_count" in blk:
+                rx_pream[ip, iq, :n] = blk["rx_pream_count"]
+            if "first_path_amp2" in blk:
+                amp2[ip, iq, :n] = blk["first_path_amp2"]
+            if "packet_type" in blk:
+                ptype[ip, iq, :n] = blk["packet_type"]
+    calib = _parse_complex_list(cfg["calib"])
+    return {
+        "cir": cir,
+        "n_frames": n_frames,
+        "ports": np.asarray(PORTS_8, dtype=np.int32),
+        "angles_deg": np.asarray([p[0] for p in pairs], dtype=np.float64),
+        "trials": np.asarray([p[1] for p in pairs], dtype=np.int32),
+        "first_path": first_path,
+        "rx_pream_count": rx_pream,
+        "first_path_amp2": amp2,
+        "packet_type": ptype,
+        "calib": calib,
+        "paper_env": np.int32(env),
+        "sync": cfg["sync"],
+        "extract": cfg["extract"],
+        "min_range_m": np.float64(cfg["min_range_m"]),
+        "skip_windows": np.int32(cfg["skip_windows"]),
+        "keep_windows": np.int32(cfg["keep_windows"]),
+        "note": cfg["note"],
+    }
+
+
+def pack_loc_extra_envs(manifest: dict) -> None:
+    fig = "Figure13a"
+    for env in (2, 3, 4):
+        print(f"=== {fig}: Env-{env} kept localization cells ===")
+        payload = _stack_loc_cells(env)
+        _save_curve(fig, f"env{env}", payload, manifest)
+
+
+def pack_sense_extra_envs(manifest: dict) -> None:
+    fig = "Figure13e"
+    for env in (2, 3, 4):
+        print(f"=== {fig}: Env-{env} kept sensing trials ===")
+        payload = _stack_sense_pairs(env)
+        _save_curve(fig, f"env{env}", payload, manifest)
+
+
 def pack_figure13e(manifest: dict) -> None:
     fig = "Figure13e"
     src = OUT / "Figure10c" / "8RX-ULA" / RAW_NAME
-    if not src.is_file():
-        print(f"=== {fig}: Figure10c pack missing, packing it first ===")
-        extra: dict = {"curves": []}
-        pack_figure10c(extra)
-        src = OUT / "Figure10c" / "8RX-ULA" / RAW_NAME
-        have = {(c.get("figure"), c.get("curve")) for c in manifest["curves"]}
-        for c in extra["curves"]:
-            if (c.get("figure"), c.get("curve")) not in have:
-                manifest["curves"].append(c)
-    print(f"=== {fig}: same CIR as Figure10c (8RX env1 track) ===")
-    _hardlink_curve(fig, "8RX-ULA", src, manifest)
+    env1 = OUT / fig / "8RX-ULA" / RAW_NAME
+    if env1.is_file():
+        print(f"=== {fig}: keep existing Env-1 pack ===")
+        _register_existing(fig, "8RX-ULA", manifest)
+    else:
+        if not src.is_file():
+            print(f"=== {fig}: Figure10c pack missing, packing it first ===")
+            extra: dict = {"curves": []}
+            pack_figure10c(extra)
+            src = OUT / "Figure10c" / "8RX-ULA" / RAW_NAME
+            have = {(c.get("figure"), c.get("curve")) for c in manifest["curves"]}
+            for c in extra["curves"]:
+                if (c.get("figure"), c.get("curve")) not in have:
+                    manifest["curves"].append(c)
+        print(f"=== {fig}: same CIR as Figure10c (8RX env1 track) ===")
+        _hardlink_curve(fig, "8RX-ULA", src, manifest)
+    pack_sense_extra_envs(manifest)
 
 
 def pack_figure10d(manifest: dict) -> None:
@@ -437,6 +587,12 @@ def pack_figure10d(manifest: dict) -> None:
 def pack_figure13a(manifest: dict) -> None:
     fig = "Figure13a"
     raw_dir = HERE / "Figure13a" / "raw"
+    env1 = OUT / fig / "8RX-ULA" / RAW_NAME
+    if env1.is_file():
+        print(f"=== {fig}: keep existing Env-1 pack ===")
+        _register_existing(fig, "8RX-ULA", manifest)
+        pack_loc_extra_envs(manifest)
+        return
     print(f"=== {fig}: 8RX env1 localization grid ===")
     ports = list(range(1, 9))
     angles = [-40, -30, -20, -10, 0, 10, 20, 30, 40]
@@ -488,6 +644,7 @@ def pack_figure13a(manifest: dict) -> None:
         ),
     }
     _save_curve(fig, "8RX-ULA", payload, manifest)
+    pack_loc_extra_envs(manifest)
 
 
 def pack_phase_coherance(manifest: dict) -> None:

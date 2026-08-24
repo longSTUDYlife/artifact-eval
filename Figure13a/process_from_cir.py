@@ -281,8 +281,9 @@ def load_bundle(data_dir: Path, angles=None, dists=None) -> dict:
     }
 
 
-def load_or_extract_lde(data_dir: Path, cir, port, ang, dist):
-    cache = data_dir / "lde_cache" / f"lde_complex_real_port{port}_angle{ang}_dist{dist}.csv"
+def load_or_extract_lde(data_dir: Path, cir, port, ang, dist, lde_dir: Path | None = None):
+    cache_dir = Path(lde_dir) if lde_dir is not None else data_dir / "lde_cache"
+    cache = cache_dir / f"lde_complex_real_port{port}_angle{ang}_dist{dist}.csv"
     if cache.is_file():
         df = pd.read_csv(cache)
         cs = df["complex_small_real"].to_numpy(float) + 1j * df["complex_small_imag"].to_numpy(float)
@@ -290,23 +291,79 @@ def load_or_extract_lde(data_dir: Path, cir, port, ang, dist):
         return cs, cl
     print(f"      LDE extract port{port} {ang}°/{dist}m N={cir.shape[0]}")
     cs, cl, _ls, _ll = extract_lde_complex_from_cir(cir, expected_gap=float(dist))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        {
+            "complex_small_real": np.real(cs),
+            "complex_small_imag": np.imag(cs),
+            "complex_large_real": np.real(cl),
+            "complex_large_imag": np.imag(cl),
+        }
+    ).to_csv(cache, index=False)
     return cs, cl
 
 
-def process_one_cell(bundle, data_dir, ang, dist, coeff):
+def _cell_port_views(bundle, ang, dist):
+    """Per-port slices for one (angle, dist). Env-1 is [port, ang, dist, ...]; extras are [port, cell, ...]."""
+    if bundle.get("layout") == "cells":
+        hits = np.flatnonzero(
+            np.isclose(bundle["angles_deg"].astype(float), float(ang))
+            & np.isclose(bundle["dists_m"].astype(float), float(dist))
+        )
+        if hits.size != 1:
+            raise KeyError(f"cell {ang}°/{dist}m not in bundle ({hits.size} matches)")
+        ic = int(hits[0])
+        views = []
+        for ip in range(len(bundle["ports"])):
+            n = int(bundle["n_frames"][ip, ic])
+            views.append(
+                {
+                    "cir": bundle["cir"][ip, ic, :n],
+                    "sequence": bundle["sequence"][ip, ic, :n],
+                    "packet_type": bundle["packet_type"][ip, ic, :n],
+                    "first_path_amp1": bundle["first_path_amp1"][ip, ic, :n],
+                }
+            )
+        return views
     ia = int(np.where(np.isclose(bundle["angles_deg"], float(ang)))[0][0])
     idd = int(np.where(np.isclose(bundle["dists_m"], float(dist)))[0][0])
-    phase_comp = PHASE_1M if int(dist) == 1 else PHASE_GT1M
+    views = []
+    for ip in range(len(bundle["ports"])):
+        n = int(bundle["n_frames"][ip, ia, idd])
+        views.append(
+            {
+                "cir": bundle["cir"][ip, ia, idd, :n],
+                "sequence": bundle["sequence"][ip, ia, idd, :n],
+                "packet_type": bundle["packet_type"][ip, ia, idd, :n],
+                "first_path_amp1": bundle["first_path_amp1"][ip, ia, idd, :n],
+            }
+        )
+    return views
+
+
+def process_one_cell(
+    bundle,
+    data_dir,
+    ang,
+    dist,
+    coeff,
+    phase_comp=None,
+    apply_correction=True,
+    lde_dir: Path | None = None,
+    rmse_threshold: float = RMSE_THRESHOLD_M,
+):
+    if phase_comp is None:
+        phase_comp = PHASE_1M if int(dist) == 1 else PHASE_GT1M
 
     sequences, c_small, c_large, distances, cirs = [], [], [], [], []
+    views = _cell_port_views(bundle, ang, dist)
     for ip, port in enumerate(PORTS):
-        n = int(bundle["n_frames"][ip, ia, idd])
-        ptype = bundle["packet_type"][ip, ia, idd, :n]
-        keep = ptype != 1
-        cir = bundle["cir"][ip, ia, idd, :n][keep]
-        seq = bundle["sequence"][ip, ia, idd, :n][keep].astype(int)
-        amp1 = bundle["first_path_amp1"][ip, ia, idd, :n][keep]
-        cs, cl = load_or_extract_lde(data_dir, cir, port, ang, dist)
+        view = views[ip]
+        keep = view["packet_type"] != 1
+        cir = view["cir"][keep]
+        seq = view["sequence"][keep].astype(int)
+        amp1 = view["first_path_amp1"][keep]
+        cs, cl = load_or_extract_lde(data_dir, cir, port, ang, dist, lde_dir=lde_dir)
         if cs.shape[0] != cir.shape[0]:
             raise RuntimeError(
                 f"LDE rows {cs.shape[0]} != filtered CIR {cir.shape[0]} "
@@ -332,17 +389,19 @@ def process_one_cell(bundle, data_dir, ang, dist, coeff):
     spatial_cal = apply_calibration(spatial_raw, phase_comp)
     aoa_cal = compute_mvdr_aoa(spatial_cal, PORTS)
 
-    dist_m = np.full(n_common, np.nan)
+    dist_raw = np.full(n_common, np.nan)
     for f in range(n_common):
         for p in range(8):
             v = dist_cm[f, p]
             if np.isfinite(v) and v != 0:
-                dist_m[f] = v / 100.0
+                dist_raw[f] = v / 100.0
                 break
-    for f in range(n_common):
-        if not np.isfinite(dist_m[f]) or not np.isfinite(aoa_cal[f]):
-            continue
-        dist_m[f] = correct_distance(dist_m[f], aoa_cal[f], coeff)
+    dist_m = dist_raw.copy()
+    if apply_correction and coeff is not None:
+        for f in range(n_common):
+            if not np.isfinite(dist_m[f]) or not np.isfinite(aoa_cal[f]):
+                continue
+            dist_m[f] = correct_distance(dist_m[f], aoa_cal[f], coeff)
 
     true_d = float(dist)
     true_a = float(ang)
@@ -358,7 +417,7 @@ def process_one_cell(bundle, data_dir, ang, dist, coeff):
         est_x[f] = d * np.cos(rad)
         est_y[f] = d * np.sin(rad)
     err = np.sqrt((est_x - true_x) ** 2 + (est_y - true_y) ** 2)
-    keep = np.isfinite(est_x) & np.isfinite(est_y) & (err <= RMSE_THRESHOLD_M)
+    keep = np.isfinite(est_x) & np.isfinite(est_y) & (err <= rmse_threshold)
     est_x[~keep] = np.nan
     est_y[~keep] = np.nan
     err[~keep] = np.nan
@@ -371,6 +430,7 @@ def process_one_cell(bundle, data_dir, ang, dist, coeff):
         "true_y": true_y,
         "errors": err,
         "aoa_cal": aoa_cal,
+        "measured_dist": dist_raw,
     }
 
 

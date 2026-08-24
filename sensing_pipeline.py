@@ -177,6 +177,7 @@ def extract_aoa_from_angle_maps(
     range_axis: np.ndarray,
     theta_axis: np.ndarray,
     min_range: float = 1.8,
+    range_max: float | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     valid = ~np.isnan(theta_axis)
     theta_valid = theta_axis[valid]
@@ -198,10 +199,14 @@ def extract_aoa_from_angle_maps(
         arv = amap[valid, :]
         processed = arv.copy()
         processed[:, ra < min_range] = 0
+        if range_max is not None:
+            processed[:, ra > range_max] = 0
         max_val = np.nanmax(processed)
         norm = processed / max_val if max_val > 0 else processed
 
         ge = ra >= min_range
+        if range_max is not None:
+            ge = ge & (ra <= range_max)
         if np.any(ge):
             sub = arv[:, ge]
             maxidx = int(np.nanargmax(sub))
@@ -220,7 +225,10 @@ def extract_aoa_from_angle_maps(
             (np.abs(angle_grid - max_angle) <= cluster_angle_range)
             & (np.abs(range_grid - max_range) <= cluster_range_range)
             & high
+            & (range_grid >= min_range)
         )
+        if range_max is not None:
+            nearby = nearby & (range_grid <= range_max)
         if np.any(nearby):
             w = norm[nearby]
             tw = np.sum(w)
@@ -268,3 +276,357 @@ def sync_by_id(
             pos.append(int(idx[js[0]]) if js else -1)
         row_idx.append(np.asarray(pos, dtype=int))
     return row_idx, common
+
+
+def _matlab_argmax(arr: np.ndarray) -> tuple[int, ...]:
+    """Linear index of first max, MATLAB column-major order."""
+    idx = int(np.argmax(np.asarray(arr).ravel(order="F")))
+    return np.unravel_index(idx, arr.shape, order="F")
+
+
+def extract_aoa_track_continuous(
+    angle_maps: list[np.ndarray],
+    range_axis: np.ndarray,
+    theta_axis: np.ndarray,
+    *,
+    init_min_range: float = 2.0,
+    init_max_range: float | None = None,
+    init_windows: int = 20,
+    peak_rel_thr: float = 0.35,
+    multi_hyp: bool = True,
+    n_hypotheses: int = 5,
+    hyp_cluster_range_m: float = 0.55,
+    hyp_cluster_angle_deg: float = 18.0,
+    prefer_aoa: float | None = None,
+    prefer_aoa_gate: float = 20.0,
+    gate_range_m: float = 0.8,
+    gate_angle_deg: float = 25.0,
+    sigma_range_m: float = 0.35,
+    sigma_angle_deg: float = 12.0,
+    vel_alpha: float = 0.35,
+    min_range: float = 1.0,
+    max_range: float | None = None,
+    cluster_threshold: float = 0.75,
+    cluster_range_m: float = 0.4,
+    cluster_angle_deg: float = 15.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
+    """Port of Range_doppler/extract_aoa_track_continuous.m."""
+    opt = {
+        "init_min_range": init_min_range,
+        "init_max_range": init_max_range,
+        "init_windows": init_windows,
+        "peak_rel_thr": peak_rel_thr,
+        "n_hypotheses": n_hypotheses,
+        "hyp_cluster_range_m": hyp_cluster_range_m,
+        "hyp_cluster_angle_deg": hyp_cluster_angle_deg,
+        "prefer_aoa": prefer_aoa,
+        "prefer_aoa_gate": prefer_aoa_gate,
+        "gate_range_m": gate_range_m,
+        "gate_angle_deg": gate_angle_deg,
+        "sigma_range_m": sigma_range_m,
+        "sigma_angle_deg": sigma_angle_deg,
+        "vel_alpha": vel_alpha,
+        "min_range": min_range,
+        "max_range": max_range,
+        "cluster_threshold": cluster_threshold,
+        "cluster_range_m": cluster_range_m,
+        "cluster_angle_deg": cluster_angle_deg,
+    }
+    valid = ~np.isnan(theta_axis)
+    theta_valid = theta_axis[valid]
+    ra0 = np.asarray(range_axis).reshape(-1)
+    angle_grid0, range_grid0 = np.meshgrid(theta_valid, ra0, indexing="xy")
+    angle_grid0 = angle_grid0.T
+    range_grid0 = range_grid0.T
+
+    maps2d = []
+    for amap in angle_maps:
+        if amap.ndim == 3:
+            amap = np.max(amap, axis=2)
+        maps2d.append(np.asarray(amap)[valid, :])
+
+    n_init = min(init_windows, len(maps2d))
+    hyps = _collect_init_hypotheses(maps2d, ra0, theta_valid, n_init, opt)
+    if not hyps:
+        amap = maps2d[0].copy()
+        amap[:, ~_range_mask(ra0, min_range, max_range)] = 0
+        ai, ri = _matlab_argmax(amap)
+        hyps = [{
+            "a": float(theta_valid[ai]),
+            "r": float(ra0[ri]),
+            "e": float(amap[ai, ri]),
+            "k0": 1,
+            "label": "fallback",
+        }]
+
+    if (not multi_hyp) or len(hyps) == 1:
+        aoa, rng, eng, assoc_ok, gate_expand = _run_track(
+            maps2d, ra0, theta_valid, angle_grid0, range_grid0, hyps[0], opt
+        )
+        info = _pack_track_info(hyps[0], assoc_ok, gate_expand, 1, hyps)
+        return aoa, rng, eng, info
+
+    scores = np.full(len(hyps), -np.inf)
+    tracks = []
+    for h, hyp in enumerate(hyps):
+        aoa_h, rng_h, eng_h, assoc_h, gate_h = _run_track(
+            maps2d, ra0, theta_valid, angle_grid0, range_grid0, hyp, opt
+        )
+        scores[h] = _hypothesis_score(aoa_h, rng_h, eng_h, assoc_h, hyp)
+        tracks.append((aoa_h, rng_h, eng_h, assoc_h, gate_h))
+    best_i = int(np.argmax(scores))
+    aoa, rng, eng, assoc_ok, gate_expand = tracks[best_i]
+    info = _pack_track_info(hyps[best_i], assoc_ok, gate_expand, best_i + 1, hyps)
+    info["hyp_scores"] = scores
+    return aoa, rng, eng, info
+
+
+def _range_mask(range_axis: np.ndarray, rmin: float, rmax: float | None) -> np.ndarray:
+    m = np.asarray(range_axis) >= rmin
+    if rmax is not None and np.isfinite(rmax):
+        m = m & (np.asarray(range_axis) <= rmax)
+    return m
+
+
+def _hypothesis_score(aoa, range_m, energy, assoc_ok, hyp) -> float:
+    n = aoa.size
+    if n < 2:
+        return -np.inf
+    assoc_rate = float(np.mean(assoc_ok))
+    e_ok = energy[np.isfinite(energy) & (energy > 0)]
+    e_mean = float(np.mean(e_ok)) if e_ok.size else float(hyp["e"])
+    if not np.isfinite(e_mean) or e_mean <= 0:
+        e_mean = float(hyp["e"])
+    d_a = np.abs(np.diff(aoa))
+    d_r = np.abs(np.diff(range_m))
+    jump_a = float(np.mean(d_a[np.isfinite(d_a)])) if d_a.size else 0.0
+    jump_r = float(np.mean(d_r[np.isfinite(d_r)])) if d_r.size else 0.0
+    smooth = 1.0 / (1.0 + jump_a / 8.0 + jump_r / 0.35)
+    score = assoc_rate * np.log1p(e_mean) * smooth
+    return float(score + 1e-3 * np.log1p(max(float(hyp["e"]), 0.0)))
+
+
+def _local_peaks_ra(amap, theta_valid, range_axis, thr):
+    peaks_a, peaks_r, peaks_e = [], [], []
+    na, nr = amap.shape
+    for ai in range(1, na - 1):
+        for ri in range(1, nr - 1):
+            v = amap[ai, ri]
+            if v < thr:
+                continue
+            if v >= np.max(amap[ai - 1 : ai + 2, ri - 1 : ri + 2]):
+                peaks_a.append(theta_valid[ai])
+                peaks_r.append(range_axis[ri])
+                peaks_e.append(v)
+    if not peaks_r:
+        ai, ri = _matlab_argmax(amap)
+        v = amap[ai, ri]
+        if v >= thr:
+            return (
+                np.array([theta_valid[ai]]),
+                np.array([range_axis[ri]]),
+                np.array([v]),
+            )
+        return np.array([]), np.array([]), np.array([])
+    return np.asarray(peaks_a), np.asarray(peaks_r), np.asarray(peaks_e)
+
+
+def _collect_init_hypotheses(maps2d, ra0, theta_valid, n_init, opt):
+    cand_a, cand_r, cand_e, cand_k = [], [], [], []
+    for k in range(n_init):
+        amap = maps2d[k].copy()
+        mask = _range_mask(ra0, opt["init_min_range"], opt["init_max_range"])
+        if not np.any(mask):
+            continue
+        amap[:, ~mask] = 0
+        mx = float(np.max(amap))
+        if not (mx > 0):
+            continue
+        thr = opt["peak_rel_thr"] * mx
+        pa, pr, pe = _local_peaks_ra(amap, theta_valid, ra0, thr)
+        if pr.size == 0:
+            continue
+        if opt["prefer_aoa"] is not None:
+            in_gate = np.abs(pa - opt["prefer_aoa"]) <= opt["prefer_aoa_gate"]
+            if np.any(in_gate):
+                pa, pr, pe = pa[in_gate], pr[in_gate], pe[in_gate]
+        cand_a.append(pa)
+        cand_r.append(pr)
+        cand_e.append(pe)
+        cand_k.append(np.full(pr.size, k + 1))
+    if not cand_r:
+        return []
+    cand_a = np.concatenate(cand_a)
+    cand_r = np.concatenate(cand_r)
+    cand_e = np.concatenate(cand_e)
+    cand_k = np.concatenate(cand_k)
+
+    used = np.zeros(cand_r.size, dtype=bool)
+    clusters = []
+    for i in range(cand_r.size):
+        if used[i]:
+            continue
+        memb = (
+            (np.abs(cand_r - cand_r[i]) <= opt["hyp_cluster_range_m"])
+            & (np.abs(cand_a - cand_a[i]) <= opt["hyp_cluster_angle_deg"])
+            & (~used)
+        )
+        used[memb] = True
+        clusters.append(np.flatnonzero(memb))
+
+    n_c = len(clusters)
+    c_a = np.zeros(n_c)
+    c_r = np.zeros(n_c)
+    c_e = np.zeros(n_c)
+    c_k = np.zeros(n_c)
+    c_n = np.zeros(n_c)
+    c_score = np.zeros(n_c)
+    for i, idx in enumerate(clusters):
+        w = cand_e[idx]
+        sw = float(np.sum(w)) + np.finfo(float).eps
+        c_a[i] = float(np.sum(cand_a[idx] * w) / sw)
+        c_r[i] = float(np.sum(cand_r[idx] * w) / sw)
+        c_e[i] = float(np.max(w))
+        c_k[i] = float(np.min(cand_k[idx]))
+        c_n[i] = float(idx.size)
+        c_score[i] = c_e[i] * np.sqrt(c_n[i])
+
+    n_keep_score = min(n_c, max(2, opt["n_hypotheses"] - 2))
+    ord_idx = np.argsort(-c_score, kind="mergesort")
+    pick = list(ord_idx[:n_keep_score])
+    i_e = int(np.argmax(c_e))
+    i_r = int(np.argmax(c_r))
+    for extra in (i_e, i_r):
+        if extra not in pick:
+            pick.append(extra)
+    pick = pick[: opt["n_hypotheses"]]
+
+    hyps = []
+    for i in pick:
+        if i == i_r and i == i_e:
+            label = "strong+far"
+        elif i == i_r:
+            label = "far"
+        elif i == i_e:
+            label = "strong"
+        else:
+            label = "persist"
+        hyps.append({
+            "a": float(c_a[i]),
+            "r": float(c_r[i]),
+            "e": float(c_e[i]),
+            "k0": int(max(1, c_k[i])),
+            "label": label,
+        })
+    return hyps
+
+
+def _associate(amap, angle_grid, range_grid, min_mask, a_pred, r_pred, gate_r, gate_a, opt):
+    dr = range_grid - r_pred
+    da = angle_grid - a_pred
+    gate = min_mask & (np.abs(dr) <= gate_r) & (np.abs(da) <= gate_a)
+    if not np.any(gate):
+        return False, np.nan, np.nan, np.nan
+    amp = amap.copy()
+    amp[~gate] = 0
+    mx = float(np.max(amp))
+    if not (mx > 0):
+        return False, np.nan, np.nan, np.nan
+    score = amp * np.exp(
+        -0.5
+        * ((dr / opt["sigma_range_m"]) ** 2 + (da / opt["sigma_angle_deg"]) ** 2)
+    )
+    score[~gate] = 0
+    ai, ri = _matlab_argmax(score)
+    a0 = float(angle_grid[ai, ri])
+    r0 = float(range_grid[ai, ri])
+    e0 = float(amap[ai, ri])
+    norm_map = amp / mx
+    near = (
+        gate
+        & (np.abs(angle_grid - a0) <= opt["cluster_angle_deg"])
+        & (np.abs(range_grid - r0) <= opt["cluster_range_m"])
+        & (norm_map >= opt["cluster_threshold"])
+    )
+    if np.any(near):
+        w = norm_map[near]
+        sw = float(np.sum(w))
+        a_new = float(np.sum(angle_grid[near] * w) / sw)
+        r_new = float(np.sum(range_grid[near] * w) / sw)
+    else:
+        a_new, r_new = a0, r0
+    return True, a_new, r_new, e0
+
+
+def _run_track(maps2d, ra0, theta_valid, angle_grid0, range_grid0, hyp, opt):
+    num_win = len(maps2d)
+    aoa = np.full(num_win, np.nan)
+    rng = np.full(num_win, np.nan)
+    energy = np.full(num_win, np.nan)
+    assoc_ok = np.zeros(num_win, dtype=bool)
+    gate_expand = np.zeros(num_win, dtype=bool)
+    k0 = int(hyp["k0"]) - 1
+    r = float(hyp["r"])
+    a = float(hyp["a"])
+    e0 = float(hyp["e"])
+    vr = 0.0
+    va = 0.0
+    aoa[k0] = a
+    rng[k0] = r
+    energy[k0] = e0
+    assoc_ok[k0] = True
+    aoa[:k0] = a
+    rng[:k0] = r
+    energy[:k0] = e0
+
+    min_mask0 = _range_mask(range_grid0, opt["min_range"], opt["max_range"])
+    for k in range(k0 + 1, num_win):
+        r_pred = r + vr
+        a_pred = a + va
+        amap = maps2d[k]
+        if amap.size == 0:
+            aoa[k] = a_pred
+            rng[k] = r_pred
+            energy[k] = energy[k - 1]
+            continue
+        ok, a_new, r_new, e_new = _associate(
+            amap, angle_grid0, range_grid0, min_mask0,
+            a_pred, r_pred, opt["gate_range_m"], opt["gate_angle_deg"], opt,
+        )
+        if not ok:
+            gate_expand[k] = True
+            ok, a_new, r_new, e_new = _associate(
+                amap, angle_grid0, range_grid0, min_mask0,
+                a_pred, r_pred,
+                opt["gate_range_m"] * 1.8, opt["gate_angle_deg"] * 1.8, opt,
+            )
+        if ok:
+            assoc_ok[k] = True
+            vr = (1 - opt["vel_alpha"]) * vr + opt["vel_alpha"] * (r_new - r)
+            va = (1 - opt["vel_alpha"]) * va + opt["vel_alpha"] * (a_new - a)
+            r, a = r_new, a_new
+            aoa[k] = a
+            rng[k] = r
+            energy[k] = e_new
+        else:
+            r, a = r_pred, a_pred
+            aoa[k] = a
+            rng[k] = r
+            energy[k] = energy[k - 1]
+            vr *= 0.7
+            va *= 0.7
+    return aoa, rng, energy, assoc_ok, gate_expand
+
+
+def _pack_track_info(best, assoc_ok, gate_expand, best_i, hyps) -> dict:
+    return {
+        "init_k": int(best["k0"]),
+        "init_range": float(best["r"]),
+        "init_aoa": float(best["a"]),
+        "init_label": best["label"],
+        "assoc_ok": assoc_ok,
+        "gate_expand": gate_expand,
+        "assoc_rate": float(np.mean(assoc_ok)),
+        "best_hyp": int(best_i),
+        "n_hyp": len(hyps),
+    }

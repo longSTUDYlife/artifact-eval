@@ -100,13 +100,14 @@ We apply for all three ACM badges:
   \item[Model]
     CNN+LSTM HAR (RD, RD+RA, RD+RA+RE); optional GPU retrain.
   \item[Data set]
-    Packed CIR (\texttt{.npz}, $\approx$651\,MB) and six HAR
-    \texttt{.mat} files ($\approx$2.0\,GB).
+    Packed CIR (\texttt{.npz}, $\approx$1.3\,GB including Fig.~13
+    Env-2/3/4 kept trials) and six HAR \texttt{.mat} files
+    ($\approx$2.0\,GB).
   \item[Environment]
     Docker. MATLAB is not required.
   \item[Hardware]
     4+ CPU cores; 8\,GB RAM minimum, 16\,GB recommended;
-    $\approx$12\,GB disk. GPU optional (Fig.~14(d) retrain only).
+    $\approx$16\,GB disk. GPU optional (Fig.~14(d) retrain only).
   \item[Execution]
     One container; \texttt{regenerate\_all.py} selects figures.
   \item[Metrics]
@@ -171,24 +172,17 @@ confusion matrices; retraining is optional.
 \subsection{Installation}
 
 \begin{lstlisting}
-docker build -t done-figures-artifact .
+docker pull whatcanisay/ultralego-ae:cpu
 mkdir -p outputs
 docker run --rm -it \
   -v "$PWD/outputs:/artifact/outputs" \
-  done-figures-artifact
+  whatcanisay/ultralego-ae:cpu
 \end{lstlisting}
 
-The container prints a figure catalog. The first image build downloads
-PyTorch (about 10--30 minutes). A CUDA image is $\approx$8\,GB; the CPU
-image is smaller.
-
-Optional GPU image (Linux amd64):
-
-\begin{lstlisting}
-docker build --platform linux/amd64 \
-  --build-arg USE_CUDA=1 \
-  -t done-figures-artifact .
-\end{lstlisting}
+The container prints a figure catalog. A local CPU rebuild is optional
+(\texttt{docker build --platform linux/amd64}).
+The CUDA image (\texttt{whatcanisay/ultralego-ae:gpu}, $\approx$8\,GB)
+is needed only to retrain Fig.~14(d).
 
 \subsection{Experiment workflow}
 
@@ -198,6 +192,8 @@ Select figures with \texttt{--only} or \texttt{--all}:
 python regenerate_all.py --list
 python regenerate_all.py --only 10ab
 python regenerate_all.py --only 10c,13e
+python regenerate_all.py --only 13a --env 2
+python regenerate_all.py --only 13e --env 4
 python regenerate_all.py --all
 \end{lstlisting}
 
@@ -206,7 +202,7 @@ From the host:
 \begin{lstlisting}
 docker run --rm \
   -v "$PWD/outputs:/artifact/outputs" \
-  done-figures-artifact \
+  whatcanisay/ultralego-ae:cpu \
   python regenerate_all.py --only 10ab
 \end{lstlisting}
 
@@ -229,8 +225,8 @@ Fig.~10(c)    & \figflag{10c}  & sensing AoA CDF \\
 Fig.~10(d)    & \figflag{10d}  & angular resolution (two reflectors) \\
 Fig.~11       & \figflag{11}   & phase quality \\
 Fig.~12       & \figflag{12}   & SCR dynamic range \\
-Fig.~13(a)(b) & \figflag{13a}  & Env-1 scatter; Env-1 localization error \\
-Fig.~13(e)(f) & \figflag{13e}  & Env-1 sensing trajectory and error \\
+Fig.~13(a)(b) & \figflag{13a}  & Env-1 scatter. \texttt{--env 2/3/4}: that env, metrics only \\
+Fig.~13(e)(f) & \figflag{13e}  & Env-1 trajectory. \texttt{--env 2/3/4}: that env, metrics only \\
 Fig.~14(d)    & \figflag{14d}  & HAR confusion matrices \\
 \bottomrule
 \end{tabularx}
@@ -289,8 +285,12 @@ Fig.~12
   & SCR well above no-SCR (means ${\approx}27$\,dB vs.\ ${\approx}4$\,dB) \\
 Fig.~13(a)(b) Env-1 8RX
   & median $4.3$\,cm, 90th $8.1$\,cm, RMSE $5.4$\,cm \\
+Fig.~13(a)(b) Env-2/3/4
+  & \texttt{--env}: print $N$/med/90th/RMSE (paper 5.2/6.9/5.7\,cm med.) \\
 Fig.~13(e)(f) Env-1 8RX
   & median $6.4$\,cm, 90th $17.4$\,cm \\
+Fig.~13(e)(f) Env-2/3/4
+  & \texttt{--env}: print $N$/med/90th/RMSE (from CIR 8.2/10.0/7.4\,cm med.) \\
 Fig.~14(d)
   & RD $0.51$; RD+RA $0.84$; RD+RA+RE $0.99$ \\
 \bottomrule
@@ -307,13 +307,16 @@ RD $<$ RD+RA $<$ RD+RA+RE. Figure labels:
 \begin{lstlisting}
 docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
   -v "$PWD/outputs:/artifact/outputs" \
-  done-figures-artifact \
+  whatcanisay/ultralego-ae:gpu \
   python regenerate_all.py --only 14d
 \end{lstlisting}
 
 \subsection{Experiment customization}
 
 \texttt{--only} accepts comma-separated figure ids.
+Fig.~13 defaults to Env-1 plots. \texttt{--env 2}, \texttt{3}, or \texttt{4}
+recomputes that environment from the packed kept trials and prints
+$N$ / median / 90th / RMSE (no PDF).
 To retrain HAR, set \texttt{FIGURE14D\_TRAIN=1} (GPU recommended).
 
 \subsection{Methodology}

@@ -190,10 +190,99 @@
       "note": "same file as 8RX-ULA/raw.npz"
     },
     {
+      "figure": "Figure13e",
+      "curve": "8RX-ULA",
+      "file": "Figure13e/8RX-ULA/raw.npz",
+      "bytes": 133284040,
+      "note": "existing pack kept"
+    },
+    {
+      "figure": "Figure13e",
+      "curve": "env2",
+      "file": "Figure13e/env2/raw.npz",
+      "bytes": 23681703,
+      "keys": [
+        "angles_deg",
+        "calib",
+        "cir",
+        "extract",
+        "first_path",
+        "first_path_amp2",
+        "keep_windows",
+        "min_range_m",
+        "n_frames",
+        "note",
+        "packet_type",
+        "paper_env",
+        "ports",
+        "rx_pream_count",
+        "skip_windows",
+        "sync",
+        "trials"
+      ]
+    },
+    {
+      "figure": "Figure13e",
+      "curve": "env3",
+      "file": "Figure13e/env3/raw.npz",
+      "bytes": 36631109,
+      "keys": [
+        "angles_deg",
+        "calib",
+        "cir",
+        "extract",
+        "first_path",
+        "first_path_amp2",
+        "keep_windows",
+        "min_range_m",
+        "n_frames",
+        "note",
+        "packet_type",
+        "paper_env",
+        "ports",
+        "rx_pream_count",
+        "skip_windows",
+        "sync",
+        "trials"
+      ]
+    },
+    {
+      "figure": "Figure13e",
+      "curve": "env4",
+      "file": "Figure13e/env4/raw.npz",
+      "bytes": 84251611,
+      "keys": [
+        "angles_deg",
+        "calib",
+        "cir",
+        "extract",
+        "first_path",
+        "first_path_amp2",
+        "keep_windows",
+        "min_range_m",
+        "n_frames",
+        "note",
+        "packet_type",
+        "paper_env",
+        "ports",
+        "rx_pream_count",
+        "skip_windows",
+        "sync",
+        "trials"
+      ]
+    },
+    {
       "figure": "Figure13a",
       "curve": "8RX-ULA",
       "file": "Figure13a/8RX-ULA/raw.npz",
       "bytes": 397391386,
+      "note": "existing pack kept"
+    },
+    {
+      "figure": "Figure13a",
+      "curve": "env2",
+      "file": "Figure13a/env2/raw.npz",
+      "bytes": 196534674,
       "keys": [
         "angles_deg",
         "cir",
@@ -202,18 +291,51 @@
         "n_frames",
         "note",
         "packet_type",
+        "paper_env",
+        "phase_deg",
         "ports",
         "sequence"
       ]
     },
     {
-      "figure": "Figure13e",
-      "curve": "8RX-ULA",
-      "file": "Figure13e/8RX-ULA/raw.npz",
-      "bytes": 133284040,
-      "note": "same file as 8RX-ULA/raw.npz"
+      "figure": "Figure13a",
+      "curve": "env3",
+      "file": "Figure13a/env3/raw.npz",
+      "bytes": 105596987,
+      "keys": [
+        "angles_deg",
+        "cir",
+        "dists_m",
+        "first_path_amp1",
+        "n_frames",
+        "note",
+        "packet_type",
+        "paper_env",
+        "phase_deg",
+        "ports",
+        "sequence"
+      ]
+    },
+    {
+      "figure": "Figure13a",
+      "curve": "env4",
+      "file": "Figure13a/env4/raw.npz",
+      "bytes": 193141318,
+      "keys": [
+        "angles_deg",
+        "cir",
+        "dists_m",
+        "first_path_amp1",
+        "n_frames",
+        "note",
+        "packet_type",
+        "paper_env",
+        "phase_deg",
+        "ports",
+        "sequence"
+      ]
     }
   ],
-  "n_curves": 18,
-  "total_bytes_unique": 650945090
+  "n_curves": 24,
+  "total_bytes_unique": 1290782492
 }

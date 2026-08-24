@@ -10,17 +10,28 @@ chooses a figure.
   python regenerate_all.py                 # list / interactive menu
   python regenerate_all.py --only 10c
   python regenerate_all.py --only 10ab,13e
+  python regenerate_all.py --only 13a --env 2   # Fig.13 extra env: metrics only
   python regenerate_all.py --all
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+
+
+def _load_py(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load {path}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 # Canonical id → aliases, label, output basenames
 CATALOG = [
@@ -64,13 +75,13 @@ CATALOG = [
     {
         "id": "Figure13a",
         "aliases": ("13a", "figure13a", "11a", "figure11a"),
-        "label": "Fig. 13(a) Env1 localization scatter (CIR → MVDR)",
+        "label": "Fig. 13(a) Env-1 scatter (CIR → MVDR); --env 2|3|4 metrics only",
         "outputs": ("figure13a.pdf", "figure13a.png"),
     },
     {
         "id": "Figure13e",
         "aliases": ("13e", "figure13e", "12a", "figure12a"),
-        "label": "Fig. 13(e) Env1 sensing trajectory (CIR → RA track)  [slow]",
+        "label": "Fig. 13(e) Env-1 trajectory (CIR → RA); --env 2|3|4 metrics only",
         "outputs": ("figure13e.pdf", "figure13e.png"),
     },
     {
@@ -145,16 +156,24 @@ def run_figure12() -> None:
     plot_dynamic_range_academic(data_dir=str(ROOT / "Figure12"))
 
 
-def run_figure13a() -> None:
+def run_figure13a(env: int = 1) -> None:
     sys.path.insert(0, str(ROOT / "Figure13a"))
-    from plot_figure13a import plot_figure13a
-    plot_figure13a(data_dir=str(ROOT / "Figure13a"), reprocess=True)
+    if env == 1:
+        from plot_figure13a import plot_figure13a
+        plot_figure13a(data_dir=str(ROOT / "Figure13a"), reprocess=True)
+        return
+    mod = _load_py(ROOT / "Figure13a" / "process_extra_env.py", "fig13a_extra_env")
+    mod.run_env(env, data_dir=ROOT / "Figure13a")
 
 
-def run_figure13e() -> None:
+def run_figure13e(env: int = 1) -> None:
     sys.path.insert(0, str(ROOT / "Figure13e"))
-    from plot_figure13e import plot_figure13e
-    plot_figure13e(data_dir=str(ROOT / "Figure13e"), reprocess=True)
+    if env == 1:
+        from plot_figure13e import plot_figure13e
+        plot_figure13e(data_dir=str(ROOT / "Figure13e"), reprocess=True)
+        return
+    mod = _load_py(ROOT / "Figure13e" / "process_extra_env.py", "fig13e_extra_env")
+    mod.run_env(env, data_dir=ROOT / "Figure13e")
 
 
 def run_figure14d() -> None:
@@ -184,7 +203,13 @@ def print_catalog() -> None:
     print("Examples:")
     print("  python regenerate_all.py --only 10ab")
     print("  python regenerate_all.py --only 10c,13e")
+    print("  python regenerate_all.py --only 13a --env 2")
+    print("  python regenerate_all.py --only 13e --env 4")
     print("  python regenerate_all.py --all")
+    print()
+    print("Fig. 13 default is Env-1 (scatter / trajectory).")
+    print("--env 2|3|4 recomputes that environment from packed CIR and")
+    print("prints N / median / 90th / RMSE; no PDF.")
     print()
     print("Outputs are copied to /artifact/outputs (mount a host folder).")
     print("Figure14d retrain: FIGURE14D_TRAIN=1 python regenerate_all.py --only 14d")
@@ -210,14 +235,31 @@ def resolve_ids(tokens: list[str]) -> list[dict]:
     return seen
 
 
-def run_items(items: list[dict]) -> int:
+EXTRA_ENV_FIGURES = {"Figure13a", "Figure13e"}
+
+
+def run_items(items: list[dict], env: int = 1) -> int:
+    if env != 1:
+        bad = [it["id"] for it in items if it["id"] not in EXTRA_ENV_FIGURES]
+        if bad:
+            raise SystemExit(
+                f"--env {env} is only for Fig. 13(a)/13(e). Not valid with: {', '.join(bad)}"
+            )
     _prepare_env()
     for item in items:
         print(f"\n=== {item['id']} ===")
-        print(item["label"])
-        RUNNERS[item["id"]]()
-        _copy_outputs(item)
-    print("\nDone. PDFs/PNGs are under outputs/")
+        if env != 1:
+            print(f"{item['label']}  [Env-{env} metrics only]")
+            RUNNERS[item["id"]](env)
+            print(f"Env-{env}: no PDF (metrics printed above).")
+        else:
+            print(item["label"])
+            RUNNERS[item["id"]]()
+            _copy_outputs(item)
+    if env == 1:
+        print("\nDone. PDFs/PNGs are under outputs/")
+    else:
+        print("\nDone. Extra-env metrics are in the terminal (no figure).")
     return 0
 
 
@@ -234,7 +276,7 @@ def interactive_menu() -> int:
         print("No figures selected.")
         return 0
     if raw.lower() == "all":
-        return run_items(list(CATALOG))
+        return run_items(list(CATALOG), env=1)
     tokens = []
     for part in raw.split(","):
         part = part.strip()
@@ -242,7 +284,7 @@ def interactive_menu() -> int:
             tokens.append(CATALOG[int(part) - 1]["id"])
         else:
             tokens.append(part)
-    return run_items(resolve_ids(tokens))
+    return run_items(resolve_ids(tokens), env=1)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -256,13 +298,22 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--all", action="store_true", help="Regenerate every figure (slow)")
     parser.add_argument("--list", action="store_true", help="Print the catalog and exit")
+    parser.add_argument(
+        "--env",
+        type=int,
+        default=1,
+        choices=(1, 2, 3, 4),
+        help="Fig. 13 only: 1=Env-1 plot (default); 2/3/4=recompute that env, print metrics, no plot",
+    )
     args = parser.parse_args(argv)
 
     if args.all:
-        return run_items(list(CATALOG))
+        if args.env != 1:
+            raise SystemExit("--env 2|3|4 cannot be combined with --all (Env-1 figures only)")
+        return run_items(list(CATALOG), env=1)
     if args.only:
         tokens = [t for t in args.only.replace(" ", ",").split(",") if t]
-        return run_items(resolve_ids(tokens))
+        return run_items(resolve_ids(tokens), env=args.env)
     if args.list or not sys.stdin.isatty():
         print_catalog()
         return 0

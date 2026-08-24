@@ -14,7 +14,10 @@ Figure10ab/lde_cache/
 Figure10c/raw/
 Figure10d/raw/
 Figure13a/raw/
+Figure13a/lde_cache_env*/
+Figure13a/localization_errors_8port_env*.csv
 Figure13e/raw/
+Figure13e/track_errors_8port_env*.csv
 Figure11/sensing/cable_data_port1_fp_mp.csv
 Figure11/sensing/cable_data_port2_fp_mp.csv
 Figure11/localization/AoA_accuracy(Localization)/*.csv
