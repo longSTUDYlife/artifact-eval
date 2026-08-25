@@ -81,8 +81,7 @@ def run_env(env: int, data_dir: Path | None = None) -> dict:
     cells = list(zip(bundle["angles_deg"].tolist(), bundle["dists_m"].tolist()))
     lde_dir = data_dir / f"lde_cache_env{env}"
 
-    print(f"=== Figure13a Env-{env} CIR → MVDR (refit distance, no plot) ===")
-    print(f"  {len(cells)} kept cells")
+    print(f"=== Fig. 13(a) Env-{env} ===")
 
     print("\n----- Stage 1: collect measured distance -----")
     meas, true_d, ang_fit = [], [], []
@@ -148,15 +147,14 @@ def run_env(env: int, data_dir: Path | None = None) -> dict:
     rmse = float(np.sqrt(np.mean(err ** 2))) if n else float("nan")
     print(
         f"\nFig. 13(a) Env-{env}  "
-        f"N = {n}, median = {med:.3f} m, 90th = {p90:.3f} m, RMSE = {rmse:.3f} m"
+        f"median = {med*100:.1f} cm, 90th = {p90*100:.1f} cm"
     )
     paper = LOC_PAPER[env]
     print(
-        f"paper Env-{env}     "
-        f"N = {paper['n']}, median = {paper['median_m']:.3f} m, "
-        f"90th = {paper['p90_m']:.3f} m, RMSE = {paper['rmse_m']:.3f} m"
+        f"expected           "
+        f"median = {paper['median_m']*100:.1f} cm, "
+        f"90th = {paper['p90_m']*100:.1f} cm"
     )
-    print("No figure written (metrics only).")
     out = data_dir / f"localization_errors_8port_env{env}.csv"
     pd.DataFrame({"Localization_Error": err}).to_csv(out, index=False)
     print(f"Saved {out}")

@@ -153,8 +153,7 @@ def run_env(env: int, data_dir: Path | None = None) -> dict:
     data_dir = Path(data_dir or HERE)
     bundle = load_bundle(env)
     n_pairs = int(bundle["angles_deg"].size)
-    print(f"=== Figure13e Env-{env} CIR → RA ({bundle['extract']}, no plot) ===")
-    print(f"  {n_pairs} kept trials")
+    print(f"=== Fig. 13(e) Env-{env} ===")
 
     err_parts, rng_parts = [], []
     for iq in range(n_pairs):
@@ -178,19 +177,14 @@ def run_env(env: int, data_dir: Path | None = None) -> dict:
     rmse = float(np.sqrt(np.mean(err ** 2)))
     print(
         f"\nFig. 13(e) Env-{env}  "
-        f"N = {n}, median = {med:.3f} m, 90th = {p90:.3f} m, RMSE = {rmse:.3f} m"
-    )
-    print(
-        f"                     "
-        f"median = {med*100:.1f} cm, 90th = {p90*100:.1f} cm, RMSE = {rmse*100:.1f} cm"
+        f"median = {med*100:.1f} cm, 90th = {p90*100:.1f} cm"
     )
     exp = SENSE_FROM_CIR[env]
     print(
-        f"expected from CIR    "
-        f"N = {exp['n']}, median = {exp['median_m']:.3f} m, "
-        f"90th = {exp['p90_m']:.3f} m, RMSE = {exp['rmse_m']:.3f} m"
+        f"expected           "
+        f"median = {exp['median_m']*100:.1f} cm, "
+        f"90th = {exp['p90_m']*100:.1f} cm"
     )
-    print("No figure written (metrics only).")
     out = data_dir / f"track_errors_8port_env{env}.csv"
     pd.DataFrame({"Track_Error": err, "Range": rng}).to_csv(out, index=False)
     print(f"Saved {out}")

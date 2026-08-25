@@ -233,8 +233,7 @@ def plot_figure13e(data_dir=None, output_basename='figure13e', reprocess=False):
     p90 = float(np.percentile(err, 90))
     rmse = float(np.sqrt(np.mean(err ** 2)))
     print(
-        f'N = {n}, median = {med:.3f} m, 90th = {p90:.3f} m, RMSE = {rmse:.3f} m '
-        f'(Fig. 13(f) numbers)'
+        f'median = {med*100:.1f} cm, 90th = {p90*100:.1f} cm'
     )
 
     out_err = os.path.join(data_dir, 'track_errors_8port.csv')

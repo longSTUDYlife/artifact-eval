@@ -10,7 +10,7 @@ chooses a figure.
   python regenerate_all.py                 # list / interactive menu
   python regenerate_all.py --only 10c
   python regenerate_all.py --only 10ab,13e
-  python regenerate_all.py --only 13a --env 2   # Fig.13 extra env: metrics only
+  python regenerate_all.py --only 13a --env 2
   python regenerate_all.py --all
 """
 
@@ -38,19 +38,19 @@ CATALOG = [
     {
         "id": "Figure10ab",
         "aliases": ("10ab", "figure10ab"),
-        "label": "Fig. 10(a)(b) localization CDF + per-angle bars (CIR → LDE → MVDR)",
+        "label": "Fig. 10(a)(b) localization AoA CDF and bars",
         "outputs": ("figure10ab.pdf", "figure10ab.png"),
     },
     {
         "id": "Figure10c",
         "aliases": ("10c", "figure10c"),
-        "label": "Fig. 10(c) sensing AoA CDF (CIR → angle-FFT RA)  [slowest]",
+        "label": "Fig. 10(c) sensing AoA CDF  [slowest]",
         "outputs": ("figure10c.pdf", "figure10c.png"),
     },
     {
         "id": "Figure10d",
         "aliases": ("10d", "figure10d"),
-        "label": "Fig. 10(d) two-reflector RA slice (CIR → angle-FFT)",
+        "label": "Fig. 10(d) two-reflector angular resolution",
         "outputs": ("figure10d.pdf", "figure10d.png"),
     },
     {
@@ -75,19 +75,19 @@ CATALOG = [
     {
         "id": "Figure13a",
         "aliases": ("13a", "figure13a", "11a", "figure11a"),
-        "label": "Fig. 13(a) Env-1 scatter (CIR → MVDR); --env 2|3|4 metrics only",
+        "label": "Fig. 13(a) Env-1 scatter; --env 2|3|4 prints that env's errors",
         "outputs": ("figure13a.pdf", "figure13a.png"),
     },
     {
         "id": "Figure13e",
         "aliases": ("13e", "figure13e", "12a", "figure12a"),
-        "label": "Fig. 13(e) Env-1 trajectory (CIR → RA); --env 2|3|4 metrics only",
+        "label": "Fig. 13(e) Env-1 trajectory; --env 2|3|4 prints that env's errors",
         "outputs": ("figure13e.pdf", "figure13e.png"),
     },
     {
         "id": "Figure14d",
         "aliases": ("14d", "figure14d"),
-        "label": "Fig. 14(d) HAR CMs (CPU --eval of packed checkpoints; FIGURE14D_TRAIN=1 to retrain)",
+        "label": "Fig. 14(d) HAR confusion matrices",
         "outputs": ("figure14d.pdf", "figure14d.png"),
     },
 ]
@@ -209,14 +209,13 @@ def print_catalog() -> None:
     print("  python regenerate_all.py --eval")
     print("  python regenerate_all.py --all")
     print()
-    print("Fig. 13 default is Env-1 (scatter / trajectory).")
-    print("--env 2|3|4 recomputes that environment from packed CIR and")
-    print("prints N / median / 90th / RMSE; no PDF.")
+    print("Fig. 13 default is Env-1.")
+    print("--env 2|3|4 prints that environment's median and 90th-percentile")
+    print("error in the terminal.")
     print()
     print("Outputs are copied to /artifact/outputs (mount a host folder).")
     print("Fig. 14(d): python regenerate_all.py --only 14d --eval")
-    print("  CPU: load packed checkpoints, test 4.mat.")
-    print("  Retrain: local CUDA rebuild (see README §5), then FIGURE14D_TRAIN=1.")
+    print("Retrain is optional; see README §5.")
 
 
 def resolve_ids(tokens: list[str]) -> list[dict]:
@@ -253,9 +252,9 @@ def run_items(items: list[dict], env: int = 1, eval_14d: bool = False) -> int:
     for item in items:
         print(f"\n=== {item['id']} ===")
         if env != 1:
-            print(f"{item['label']}  [Env-{env} metrics only]")
+            print(f"{item['label']}  [Env-{env}]")
             RUNNERS[item["id"]](env)
-            print(f"Env-{env}: no PDF (metrics printed above).")
+            print(f"Env-{env}: errors printed above.")
         else:
             print(item["label"])
             if item["id"] == "Figure14d":
@@ -266,7 +265,7 @@ def run_items(items: list[dict], env: int = 1, eval_14d: bool = False) -> int:
     if env == 1:
         print("\nDone. PDFs/PNGs are under outputs/")
     else:
-        print("\nDone. Extra-env metrics are in the terminal (no figure).")
+        print("\nDone. Env errors are printed above.")
     return 0
 
 
@@ -310,12 +309,12 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=1,
         choices=(1, 2, 3, 4),
-        help="Fig. 13 only: 1=Env-1 plot (default); 2/3/4=recompute that env, print metrics, no plot",
+        help="Fig. 13 only: 1=Env-1 figure (default); 2/3/4=print that environment's errors",
     )
     parser.add_argument(
         "--eval",
         action="store_true",
-        help="Fig. 14(d): load packed checkpoints and test 4.mat on CPU (no training)",
+        help="Fig. 14(d): load the provided models and test on CPU",
     )
     args = parser.parse_args(argv)
 

@@ -100,18 +100,17 @@ We apply for all three ACM badges:
   \item[Model]
     CNN+LSTM HAR (RD, RD+RA, RD+RA+RE); optional GPU retrain.
   \item[Data set]
-    Packed CIR (\texttt{.npz}, $\approx$1.3\,GB including Fig.~13
-    Env-2/3/4 kept trials) and six HAR \texttt{.mat} files
-    ($\approx$2.0\,GB).
+    CIR samples (\texttt{.npz}, $\approx$1.3\,GB) and HAR
+    \texttt{.mat} files / models ($\approx$2.0\,GB).
   \item[Environment]
     Docker. MATLAB is not required.
   \item[Hardware]
     4+ CPU cores; 8\,GB RAM minimum, 16\,GB recommended;
-    $\approx$16\,GB disk. GPU optional (Fig.~14(d) retrain only).
+    $\approx$16\,GB disk. GPU optional (only to retrain Fig.~14(d)).
   \item[Execution]
     One container; \texttt{regenerate\_all.py} selects figures.
   \item[Metrics]
-    AoA median and 90th percentile; localization RMSE; tracking error;
+    AoA / localization / tracking median and 90th percentile;
     phase standard deviation; SCR dynamic range; HAR test accuracy.
   \item[Output]
     PDF/PNG in \texttt{outputs/}, plus the printed statistics.
@@ -158,20 +157,21 @@ Docker~20+ with BuildKit. The image is \texttt{python:3.11-slim} with
 \subsubsection{Data sets}
 
 \begin{itemize}
-  \item Packed CIR: \path{curve_raw_npy/} (one \texttt{raw.npz} per curve).
-  \item HAR checkpoints: \path{Figure14d/checkpoints/}
-        (RD / RD+RA / RD+RA+RE file-split weights).
-  \item HAR test maps: \path{Figure14d/filtered/4.mat}
-        (CPU eval). Files \texttt{1.mat}--\texttt{6.mat} are in the repo
-        for optional retrain (seed~42; train 1,2,5,6; val~3; test~4).
-  \item HAR packed confusion matrices: \path{Figure14d/cms/}.
+  \item CIR samples: \path{curve_raw_npy/} (one \texttt{raw.npz} per curve).
+  \item HAR models: \path{Figure14d/checkpoints/}
+        (RD, RD+RA, RD+RA+RE).
+  \item HAR maps: \path{Figure14d/filtered/}
+        (\texttt{1.mat}--\texttt{6.mat}; test file is \texttt{4.mat}).
+        The CPU image includes \texttt{4.mat} only; the other five
+        files are in the repository for optional retrain.
+  \item Stored Fig.~14(d) confusion matrices: \path{Figure14d/cms/}.
 \end{itemize}
 
 \subsubsection{Models}
 
-HAR uses a CNN+LSTM. Fig.~14(d) is reproduced by loading the packed
-checkpoints and running test inference on \texttt{4.mat} (CPU;
-\texttt{--eval}). Retraining is optional and requires a local CUDA rebuild.
+HAR uses a CNN+LSTM. Fig.~14(d) loads the provided models and tests
+on CPU (\texttt{--eval}). Retraining is optional (local CUDA rebuild;
+see customization below).
 
 \subsection{Installation}
 
@@ -185,8 +185,8 @@ docker run --rm -it \
 
 The container prints a figure catalog. A local CPU rebuild is optional
 (\texttt{docker build --platform linux/amd64}).
-Fig.~14(d) runs on this CPU image (\texttt{--eval}). A CUDA rebuild is
-needed only if you want to retrain HAR.
+Fig.~14(d) runs on this CPU image. A CUDA rebuild is needed only to
+retrain HAR.
 
 \subsection{Experiment workflow}
 
@@ -230,9 +230,9 @@ Fig.~10(c)    & \figflag{10c}  & sensing AoA CDF \\
 Fig.~10(d)    & \figflag{10d}  & angular resolution (two reflectors) \\
 Fig.~11       & \figflag{11}   & phase quality \\
 Fig.~12       & \figflag{12}   & SCR dynamic range \\
-Fig.~13(a)(b) & \figflag{13a}  & Env-1 scatter. \texttt{--env 2/3/4}: that env, metrics only \\
-Fig.~13(e)(f) & \figflag{13e}  & Env-1 trajectory. \texttt{--env 2/3/4}: that env, metrics only \\
-Fig.~14(d)    & \figflag{14d}  & HAR CMs (CPU \texttt{--eval}) \\
+Fig.~13(a)(b) & \figflag{13a}  & Env-1 scatter. \texttt{--env 2/3/4}: that env's errors in the terminal \\
+Fig.~13(e)(f) & \figflag{13e}  & Env-1 trajectory. \texttt{--env 2/3/4}: that env's errors in the terminal \\
+Fig.~14(d)    & \figflag{14d}  & HAR confusion matrices \\
 \bottomrule
 \end{tabularx}
 }
@@ -250,7 +250,7 @@ Fig.~14(d)    & \figflag{14d}  & HAR CMs (CPU \texttt{--eval}) \\
 \figflag{12}   & $<$1\,min \\
 \figflag{13a}  & 15--40\,min \\
 \figflag{13e}  & 10--30\,min \\
-\figflag{14d}  & 2--8\,min CPU eval of packed checkpoints \\
+\figflag{14d}  & 2--8\,min \\
 \figflag{--all}& about 1--3\,h on CPU \\
 \bottomrule
 \end{tabularx}
@@ -289,13 +289,13 @@ Fig.~11 std (rad)
 Fig.~12
   & SCR well above no-SCR (means ${\approx}27$\,dB vs.\ ${\approx}4$\,dB) \\
 Fig.~13(a)(b) Env-1 8RX
-  & median $4.3$\,cm, 90th $8.1$\,cm, RMSE $5.4$\,cm \\
+  & median $4.3$\,cm, 90th $8.1$\,cm \\
 Fig.~13(a)(b) Env-2/3/4
-  & \texttt{--env}: print $N$/med/90th/RMSE (paper 5.2/6.9/5.7\,cm med.) \\
+  & median $5.2$/$6.9$/$5.7$\,cm, 90th $10.2$/$12.1$/$10.7$\,cm \\
 Fig.~13(e)(f) Env-1 8RX
   & median $6.4$\,cm, 90th $17.4$\,cm \\
 Fig.~13(e)(f) Env-2/3/4
-  & \texttt{--env}: print $N$/med/90th/RMSE (from CIR 8.2/10.0/7.4\,cm med.) \\
+  & median $8.2$/$10.0$/$7.4$\,cm, 90th $17.1$/$23.0$/$16.6$\,cm \\
 Fig.~14(d)
   & RD $0.51$; RD+RA $0.84$; RD+RA+RE $0.99$ \\
 \bottomrule
@@ -303,11 +303,10 @@ Fig.~14(d)
 }
 
 \vspace{0.35em}
-Fig.~14(d) from packed checkpoints on \texttt{4.mat} matches the paper
-(CPU \texttt{--eval}). Optional retrain: local CUDA rebuild, same file
-split, preserves RD $<$ RD+RA $<$ RD+RA+RE. Figure labels:
-\texttt{bow}, \texttt{slap\_L}, \texttt{slap\_R}, \texttt{smash},
-\texttt{volleyball}.
+Fig.~14(d) matches the paper on CPU (\texttt{--eval}): train/val/test
+files \texttt{1,2,5,6} / \texttt{3} / \texttt{4} (\texttt{seed=42}).
+Labels: \texttt{bow}, \texttt{slap\_L}, \texttt{slap\_R},
+\texttt{smash}, \texttt{volleyball}. Retrain is optional (below).
 
 \begin{lstlisting}
 docker run --rm \
@@ -319,13 +318,37 @@ docker run --rm \
 \subsection{Experiment customization}
 
 \texttt{--only} accepts comma-separated figure ids.
-Fig.~13 defaults to Env-1 plots. \texttt{--env 2}, \texttt{3}, or \texttt{4}
-recomputes that environment from the packed kept trials and prints
-$N$ / median / 90th / RMSE (no PDF).
-To retrain HAR, rebuild a CUDA image locally
-(\texttt{docker build --build-arg USE_CUDA=1}; include all six
-\texttt{filtered/*.mat} in the image) and set
-\texttt{FIGURE14D\_TRAIN=1}.
+Fig.~13 defaults to Env-1. \texttt{--env 2}, \texttt{3}, or \texttt{4}
+prints that environment's median and 90th-percentile error in the
+terminal.
+
+To retrain Fig.~14(d), rebuild from a clone of this repository
+(not from \texttt{docker pull}). The CPU image already has the test
+file \texttt{Figure14d/filtered/4.mat} and the three models; it does
+not include \texttt{1.mat}, \texttt{2.mat}, \texttt{3.mat},
+\texttt{5.mat}, or \texttt{6.mat}. Those five files are in the repo.
+Open \texttt{.dockerignore} and delete or comment out exactly these
+lines so a rebuild copies them (do not add \texttt{4.mat}; it is
+already included):
+\begin{lstlisting}
+Figure14d/filtered/1.mat
+Figure14d/filtered/2.mat
+Figure14d/filtered/3.mat
+Figure14d/filtered/5.mat
+Figure14d/filtered/6.mat
+\end{lstlisting}
+Then:
+\begin{lstlisting}
+docker build --platform linux/amd64 --build-arg USE_CUDA=1 \
+  -t whatcanisay/ultralego-ae:gpu .
+docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
+  -v "$PWD/outputs:/artifact/outputs" \
+  whatcanisay/ultralego-ae:gpu \
+  python regenerate_all.py --only 14d
+\end{lstlisting}
+The same file split should keep RD $<$ RD+RA $<$ RD+RA+RE; accuracies
+may differ slightly from the provided models. Full steps are in
+\texttt{README.md} §5.
 
 \subsection{Methodology}
 

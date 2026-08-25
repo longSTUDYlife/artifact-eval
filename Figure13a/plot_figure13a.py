@@ -193,7 +193,7 @@ def plot_figure13a(data_dir=None, output_basename='figure13a', reprocess=False):
     p90 = float(np.percentile(err, 90))
     rmse = float(np.sqrt(np.mean(err ** 2)))
     print(
-        f'N = {n}, median = {med:.3f} m, 90th = {p90:.3f} m, RMSE = {rmse:.3f} m'
+        f'median = {med*100:.1f} cm, 90th = {p90*100:.1f} cm'
     )
     print(f'Errors: {src}')
     print(f'Scatter: {os.path.join(data_dir, "localization_scatter_data.csv")}')

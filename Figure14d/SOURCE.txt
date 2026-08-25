@@ -1,27 +1,25 @@
 Figure 14(d) HAR confusion matrices (RD / RD+RA / RD+RA+RE)
 
-Split: file, seed=42, val_ratio=0.15, test_ratio=0.15
-  6 files (filtered/1.mat … 6.mat) → train 4 / val 1 / test 1
+Split: file, seed=42
   TRAIN: 1.mat 2.mat 5.mat 6.mat
   VAL:   3.mat
   TEST:  4.mat
 
 Action names in .mat are slam_L / slam_R; figure labels slap_L / slap_R.
 
-CPU eval of packed checkpoints (default AE path, no GPU):
+Default (CPU, provided models):
   python regenerate_all.py --only 14d --eval
-  python train_and_plot.py
   paper acc: RD 0.5119 / RD+RA 0.8373 / RD+RA+RE 0.9898
-  weights: checkpoints/{rd,rd+ra,rd+ra+re}_file_best.pth
-  test maps: filtered/4.mat  (CPU Docker image ships this file only)
 
-Plot packed cms without running the network:
+Plot stored CMs without running the network:
   FIGURE14D_TRAIN=0 python train_and_plot.py
 
-Retrain then plot (needs all 6 .mat; rebuild CUDA image locally):
-  # comment out Figure14d/filtered/{1,2,3,5,6}.mat in .dockerignore
+Retrain (needs all six .mat files; rebuild a CUDA image from the clone):
+  The CPU Docker image already has 4.mat. It omits 1,2,3,5,6.mat via
+  .dockerignore. Delete or comment out those five lines, then:
   docker build --platform linux/amd64 --build-arg USE_CUDA=1 \
     -t whatcanisay/ultralego-ae:gpu .
   docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
     -v "$PWD/outputs:/artifact/outputs" whatcanisay/ultralego-ae:gpu \
     python regenerate_all.py --only 14d
+  See README §5 for the full walkthrough.

@@ -18,7 +18,7 @@ License: MIT (`LICENSE`).
 | CPU | 4+ cores |
 | RAM | 8 GB minimum, 16 GB recommended |
 | Disk | about 16 GB free |
-| GPU | Optional. Default Fig. 14(d) is CPU eval of packed checkpoints. GPU only if you rebuild to retrain. |
+| GPU | Optional. Needed only if you retrain Fig. 14(d). |
 
 ---
 
@@ -80,12 +80,12 @@ docker build --platform linux/amd64 -t whatcanisay/ultralego-ae:cpu .
 | Fig. 10(d) | `10d` | angular resolution (two reflectors) | 2–8 min |
 | Fig. 11 | `11` | phase quality | 1–5 min |
 | Fig. 12 | `12` | SCR dynamic range | < 1 min |
-| Fig. 13(a)(b) | `13a` | Env-1 scatter and localization error. `--env 2\|3\|4`: that env from CIR, metrics only (no plot) | 15–40 min (Env-1); 20–60 min extra env |
-| Fig. 13(e)(f) | `13e` | Env-1 sensing trajectory and error. `--env 2\|3\|4`: that env from CIR, metrics only (no plot) | 10–30 min (Env-1); 10–25 min extra env |
-| Fig. 14(d) | `14d` | HAR confusion matrices (CPU `--eval` of packed checkpoints on `4.mat`) | 2–8 min |
+| Fig. 13(a)(b) | `13a` | Env-1 scatter. `--env 2\|3\|4`: that environment’s errors in the terminal | 15–40 min (Env-1); 20–60 min extra env |
+| Fig. 13(e)(f) | `13e` | Env-1 trajectory. `--env 2\|3\|4`: that environment’s errors in the terminal | 10–30 min (Env-1); 10–25 min extra env |
+| Fig. 14(d) | `14d` | HAR confusion matrices | 2–8 min |
 
-`--all` is about 1–3 hours on CPU. Fig. 14(d) default is checkpoint eval
-(no GPU). Retrain is optional and requires a local CUDA rebuild (see §5).
+`--all` is about 1–3 hours on CPU. Fig. 14(d) loads the provided models
+and tests on CPU. Retrain is optional (see §5).
 
 ---
 
@@ -117,33 +117,34 @@ is expected; the relative ordering and the qualitative claims should hold.
 
 **Fig. 12** SCR well above no-SCR (means ≈27 dB vs. ≈4 dB).
 
-**Fig. 13(a)(b)** default (`--only 13a`) is Env-1, 8RX: median 4.3 cm, 90th 8.1 cm, RMSE 5.4 cm. Optional `--env 2|3|4` recomputes that environment from packed CIR (LDE + MVDR + refit distance) and prints N / median / 90th / RMSE; no PDF. Paper reference:
+**Fig. 13(a)(b)** `--only 13a` is Env-1, 8RX: median 4.3 cm, 90th 8.1 cm.
+`--env 2|3|4` prints that environment:
 
-| Env | N | median | 90th | RMSE |
-|-----|---|--------|------|------|
-| 2 | 15450 | 5.2 cm | 10.2 cm | 6.6 cm |
-| 3 | 6760 | 6.9 cm | 12.1 cm | 8.1 cm |
-| 4 | 9354 | 5.7 cm | 10.7 cm | 6.9 cm |
+| Env | median | 90th |
+|-----|--------|------|
+| 2 | 5.2 cm | 10.2 cm |
+| 3 | 6.9 cm | 12.1 cm |
+| 4 | 5.7 cm | 10.7 cm |
 
-**Fig. 13(e)(f)** default (`--only 13e`) is Env-1, 8RX: median 6.4 cm, 90th 17.4 cm. Optional `--env 2|3|4` recomputes that environment from the packed kept trials and prints the same four metrics (no trajectory plot). From-CIR reference:
+**Fig. 13(e)(f)** `--only 13e` is Env-1, 8RX: median 6.4 cm, 90th 17.4 cm.
+`--env 2|3|4` prints that environment:
 
-| Env | N | median | 90th | RMSE |
-|-----|---|--------|------|------|
-| 2 | 548 | 8.2 cm | 17.1 cm | 10.9 cm |
-| 3 | 878 | 10.0 cm | 23.0 cm | 15.2 cm |
-| 4 | 1739 | 7.4 cm | 16.6 cm | 10.5 cm |
+| Env | median | 90th |
+|-----|--------|------|
+| 2 | 8.2 cm | 17.1 cm |
+| 3 | 10.0 cm | 23.0 cm |
+| 4 | 7.4 cm | 16.6 cm |
 
-**Fig. 14(d)** CPU `--eval` of the packed checkpoints on test file `4.mat`:
-RD 0.51, RD+RA 0.84, RD+RA+RE 0.99.
-Same file split (`seed=42`: train `1,2,5,6` / val `3` / test `4`).
+**Fig. 14(d)** RD 0.51, RD+RA 0.84, RD+RA+RE 0.99.
+Train / val / test files: `1,2,5,6` / `3` / `4` (`seed=42`).
 Labels: `bow`, `slap_L`, `slap_R`, `smash`, `volleyball`.
-`FIGURE14D_TRAIN=0` plots the packed confusion matrices without running the model.
 
 ---
 
 ## 5. Optional: retrain Fig. 14(d)
 
-Default reproduction is CPU eval (no GPU image on Docker Hub):
+The CPU image is enough to reproduce the figure: it already contains
+the three trained models and the test file `Figure14d/filtered/4.mat`.
 
 ```bash
 docker run --rm -v "$PWD/outputs:/artifact/outputs" \
@@ -151,42 +152,63 @@ docker run --rm -v "$PWD/outputs:/artifact/outputs" \
   python regenerate_all.py --only 14d --eval
 ```
 
-To retrain, rebuild a CUDA image from this repo (all six `filtered/*.mat`
-must be copied into the image: comment out the `Figure14d/filtered/1.mat`
-… `6.mat` lines in `.dockerignore`, keep `4.mat` either way):
+The other five recordings (`1.mat`, `2.mat`, `3.mat`, `5.mat`, `6.mat`)
+are in the GitHub repo but **not** in the CPU image, so a `docker pull`
+image cannot retrain. To retrain you must rebuild from a clone:
 
-```bash
-docker build --platform linux/amd64 --build-arg USE_CUDA=1 \
-  -t whatcanisay/ultralego-ae:gpu .
-docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
-  -v "$PWD/outputs:/artifact/outputs" whatcanisay/ultralego-ae:gpu \
-  python regenerate_all.py --only 14d
-```
+1. Clone this repository. Check that all six files exist:
 
-Retrain uses the same file split and should keep RD < RD+RA < RD+RA+RE.
-Numbers may differ slightly from the packed checkpoints.
+   ```bash
+   ls Figure14d/filtered/*.mat
+   # 1.mat  2.mat  3.mat  4.mat  5.mat  6.mat
+   ```
+
+2. Edit `.dockerignore` in the repo root. The CPU image omits the
+   training files with these five lines (leave them as they are if you
+   only want eval):
+
+   ```
+   Figure14d/filtered/1.mat
+   Figure14d/filtered/2.mat
+   Figure14d/filtered/3.mat
+   Figure14d/filtered/5.mat
+   Figure14d/filtered/6.mat
+   ```
+
+   **Delete or comment out those five lines** so `docker build` copies
+   them. Do not add a line for `4.mat`: it is not listed, so it is
+   already included.
+
+3. Build a CUDA image and train:
+
+   ```bash
+   docker build --platform linux/amd64 --build-arg USE_CUDA=1 \
+     -t whatcanisay/ultralego-ae:gpu .
+   docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
+     -v "$PWD/outputs:/artifact/outputs" whatcanisay/ultralego-ae:gpu \
+     python regenerate_all.py --only 14d
+   ```
+
+Use the same file split as above. The ordering RD < RD+RA < RD+RA+RE
+should hold; exact accuracies may differ slightly from the provided
+models. `FIGURE14D_TRAIN=0` plots the stored confusion matrices and
+does not run the network.
 
 ---
 
 ## 6. Data
 
 ```
-curve_raw_npy/<figure>/<curve>/raw.npz   # packed CIR / samples
-Figure14d/checkpoints/*.pth              # paper HAR weights (CPU --eval)
-Figure14d/filtered/4.mat                 # HAR test maps (CPU image)
-Figure14d/filtered/{1..6}.mat            # all maps; needed only to retrain
-Figure14d/cms/*.npy                      # packed test confusion matrices
+curve_raw_npy/<figure>/<curve>/raw.npz   # CIR / samples used by each figure
+Figure14d/checkpoints/*.pth              # Fig. 14(d) trained models
+Figure14d/filtered/{1..6}.mat            # HAR maps (test = 4.mat)
+Figure14d/cms/*.npy                      # stored Fig. 14(d) confusion matrices
+curve_raw_npy/Figure13a/env{2,3,4}/      # Fig. 13 extra environments
+curve_raw_npy/Figure13e/env{2,3,4}/
 ```
 
 ```python
 import numpy as np
 d = np.load("curve_raw_npy/Figure10c/8RX-ULA/raw.npz")
 cir = d["cir"]  # [port, angle, trial, frame, tap]
-```
-
-Fig. 13 extra environments (kept cells / trials only):
-
-```
-curve_raw_npy/Figure13a/env{2,3,4}/raw.npz   # loc [port, cell, frame, tap]
-curve_raw_npy/Figure13e/env{2,3,4}/raw.npz   # sensing [port, pair, frame, tap]
 ```
