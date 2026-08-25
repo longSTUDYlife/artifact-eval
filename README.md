@@ -205,7 +205,11 @@ Figure14d/filtered/{1..6}.mat            # HAR maps (test = 4.mat)
 Figure14d/cms/*.npy                      # stored Fig. 14(d) confusion matrices
 curve_raw_npy/Figure13a/env{2,3,4}/      # Fig. 13 extra environments
 curve_raw_npy/Figure13e/env{2,3,4}/
+download/Shell.STL                       # 3D-printed module shell (~47×48×47 mm)
 ```
+
+The STL is for inspecting or printing the module housing. Figure
+scripts do not use it.
 
 ```python
 import numpy as np

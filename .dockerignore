@@ -42,3 +42,6 @@ Figure14d/**/tensorboard/
 # Local CUDA wheel cache (optional maintainer download; not part of the artifact)
 wheels/
 .torch_wheels/
+
+# 3D CAD (GitHub only; not used to regenerate figures)
+download/
