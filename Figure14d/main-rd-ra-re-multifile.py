@@ -844,8 +844,178 @@ def build_model(num_classes, args):
 
 
 # ============================================================
-# Main
+# Packed-checkpoint eval (CPU; no training)
+# Artifact files are 1.mat–6.mat; original runs used named mats.
 # ============================================================
+
+PAPER_MAT_ALIASES = {
+    "activity_rd_ra_re_new2_fangwei.mat": "1.mat",
+    "activity_rd_ra_re_new2_moyan.mat": "2.mat",
+    "activity_rd_ra_re_new2_ruofeng.mat": "3.mat",
+    "activity_rd_ra_re_new_fangwei.mat": "4.mat",
+    "activity_rd_ra_re_new_moyan.mat": "5.mat",
+    "activity_rd_ra_re_new_ruofeng.mat": "6.mat",
+}
+
+EVAL_ARG_DEFAULTS = {
+    "seq_len": 16,
+    "eval_stride": 8,
+    "batch_size": 16,
+    "branch_feature_dim": 128,
+    "fusion_dim": 256,
+    "lstm_hidden_dim": 128,
+    "lstm_layers": 2,
+    "bidirectional": False,
+    "dropout": 0.3,
+    "no_log_power": False,
+    "num_workers": 0,
+    "seed": 42,
+}
+
+
+def resolve_mat_path(data_dir: str, name: str) -> str:
+    base = os.path.basename(name)
+    direct = os.path.join(data_dir, base)
+    if os.path.isfile(direct):
+        return direct
+    mapped = PAPER_MAT_ALIASES.get(base)
+    if mapped:
+        alt = os.path.join(data_dir, mapped)
+        if os.path.isfile(alt):
+            return alt
+    raise FileNotFoundError(
+        f"Need {base} (or {PAPER_MAT_ALIASES.get(base, 'mapped name')}) in {data_dir}"
+    )
+
+
+def load_torch_checkpoint(path: str, device: torch.device):
+    try:
+        return torch.load(path, map_location=device, weights_only=False)
+    except TypeError:
+        return torch.load(path, map_location=device)
+
+
+def modalities_from_state_dict(state: Dict[str, Any]) -> List[str]:
+    found = []
+    for m in ("rd", "ra", "re"):
+        if any(k.startswith(f"branches.{m}.") for k in state):
+            found.append(m)
+    return found
+
+
+def namespace_from_checkpoint(ckpt: Dict[str, Any], modalities: List[str] | None = None):
+    from types import SimpleNamespace
+
+    raw = ckpt.get("args") or {}
+    if not isinstance(raw, dict):
+        raw = vars(raw) if hasattr(raw, "__dict__") else {}
+    ns = SimpleNamespace(**EVAL_ARG_DEFAULTS)
+    for key, val in raw.items():
+        setattr(ns, key, val)
+    inferred = modalities_from_state_dict(ckpt.get("model_state_dict") or {})
+    if modalities is not None:
+        ns.modalities = list(modalities)
+    elif inferred:
+        ns.modalities = inferred
+    elif isinstance(getattr(ns, "modalities", None), str):
+        ns.modalities = parse_modalities(ns.modalities)
+    elif not isinstance(getattr(ns, "modalities", None), (list, tuple)):
+        ns.modalities = parse_modalities("rd,ra,re")
+    else:
+        ns.modalities = list(ns.modalities)
+    ns.no_log_power = bool(getattr(ns, "no_log_power", False))
+    return ns
+
+
+def load_eval_test_records(
+    data_dir: str,
+    test_file: str,
+    action_list: List[str],
+) -> List[Dict[str, Any]]:
+    path = resolve_mat_path(data_dir, test_file)
+    rec = load_mat_file(path)
+    action_to_idx = {name: i for i, name in enumerate(action_list)}
+    return [convert_local_labels_to_global(rec, action_to_idx)]
+
+
+def evaluate_checkpoint(
+    ckpt_path: str,
+    data_dir: str,
+    out_dir: str,
+    device: torch.device | None = None,
+    test_records: List[Dict[str, Any]] | None = None,
+    run_name: str | None = None,
+    test_file: str = "4.mat",
+) -> Dict[str, Any]:
+    """Load a packed .pth, run test on CPU (or CUDA if device is cuda), write CM + json."""
+    device = device or torch.device("cpu")
+    ckpt = load_torch_checkpoint(ckpt_path, device)
+    action_list = list(ckpt["action_list"])
+    stats = ckpt["stats"]
+    args_ns = namespace_from_checkpoint(ckpt)
+    split_info = ckpt.get("split_info") or {}
+    if not test_records:
+        names = split_info.get("test_files") or [test_file]
+        test_records = []
+        for name in names:
+            test_records.extend(load_eval_test_records(data_dir, name, action_list))
+
+    test_samples = build_sample_index(test_records, args_ns.seq_len, args_ns.eval_stride)
+    if len(test_samples) == 0:
+        raise RuntimeError(f"No test samples from {ckpt_path}")
+
+    dataset = MultiModalSequenceDataset(
+        test_records,
+        test_samples,
+        args_ns.modalities,
+        stats,
+        log_power=not args_ns.no_log_power,
+    )
+    loader = DataLoader(
+        dataset,
+        batch_size=int(args_ns.batch_size),
+        shuffle=False,
+        num_workers=int(getattr(args_ns, "num_workers", 0)),
+        pin_memory=device.type == "cuda",
+    )
+
+    model = build_model(len(action_list), args_ns).to(device)
+    model.load_state_dict(ckpt["model_state_dict"])
+    criterion = nn.CrossEntropyLoss()
+    test_loss, test_acc, test_preds, test_targets = evaluate(model, loader, criterion, device)
+
+    test_effective_indices = np.unique(test_targets)
+    test_effective_names = [action_list[i] for i in test_effective_indices]
+    test_cm_effective = confusion_matrix(test_targets, test_preds, labels=test_effective_indices)
+
+    ensure_dir(out_dir)
+    mod_name = "+".join(args_ns.modalities)
+    run_name = run_name or f"{mod_name}_file_eval"
+    test_cm_npy = os.path.join(out_dir, f"{run_name}_test_cm_effective.npy")
+    result_json = os.path.join(out_dir, f"{run_name}_results.json")
+    np.save(test_cm_npy, test_cm_effective)
+    results = {
+        "modalities": args_ns.modalities,
+        "split_mode": "file",
+        "final_test_loss": float(test_loss),
+        "final_test_acc": float(test_acc),
+        "action_list": action_list,
+        "split_info": split_info,
+        "test_num_samples": len(test_samples),
+        "stats": stats,
+        "test_effective_class_indices": test_effective_indices.tolist(),
+        "test_effective_class_names": test_effective_names,
+        "checkpoint_path": os.path.abspath(ckpt_path),
+        "test_cm_effective_path": test_cm_npy,
+        "device": str(device),
+    }
+    save_json(results, result_json)
+    print(
+        f"Eval {mod_name}: device={device} N={len(test_samples)} "
+        f"acc={test_acc:.4f} -> {result_json}"
+    )
+    return results
+
 
 def main(args):
     set_seed(args.seed)
@@ -1136,6 +1306,18 @@ def parse_args():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--cpu", action="store_true")
     parser.add_argument("--no_log_power", action="store_true")
+    parser.add_argument(
+        "--eval",
+        action="store_true",
+        help="Load --ckpt and test on CPU (no training). Default test file: 4.mat",
+    )
+    parser.add_argument("--ckpt", type=str, default="", help="Checkpoint .pth for --eval")
+    parser.add_argument(
+        "--test_file",
+        type=str,
+        default="4.mat",
+        help="Test .mat for --eval (artifact name or original name)",
+    )
 
     args = parser.parse_args()
     args.modalities = parse_modalities(args.modalities)
@@ -1144,4 +1326,18 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    main(args)
+    if args.eval:
+        if not args.ckpt:
+            raise SystemExit("--eval requires --ckpt")
+        device = torch.device("cpu")
+        if torch.cuda.is_available() and not args.cpu:
+            device = torch.device("cuda")
+        evaluate_checkpoint(
+            args.ckpt,
+            args.data_dir,
+            args.out_dir,
+            device=device,
+            test_file=args.test_file,
+        )
+    else:
+        main(args)

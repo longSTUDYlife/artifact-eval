@@ -18,7 +18,7 @@ License: MIT (`LICENSE`).
 | CPU | 4+ cores |
 | RAM | 8 GB minimum, 16 GB recommended |
 | Disk | about 16 GB free |
-| GPU | Optional. Needed only to retrain Fig. 14(d). Plotting 14(d) is CPU. |
+| GPU | Optional. Default Fig. 14(d) is CPU eval of packed checkpoints. GPU only if you rebuild to retrain. |
 
 ---
 
@@ -42,6 +42,7 @@ python regenerate_all.py --only 10ab
 python regenerate_all.py --only 10c,13e
 python regenerate_all.py --only 13a --env 2
 python regenerate_all.py --only 13e --env 4
+python regenerate_all.py --only 14d --eval
 python regenerate_all.py --all
 ```
 
@@ -81,10 +82,10 @@ docker build --platform linux/amd64 -t whatcanisay/ultralego-ae:cpu .
 | Fig. 12 | `12` | SCR dynamic range | < 1 min |
 | Fig. 13(a)(b) | `13a` | Env-1 scatter and localization error. `--env 2\|3\|4`: that env from CIR, metrics only (no plot) | 15–40 min (Env-1); 20–60 min extra env |
 | Fig. 13(e)(f) | `13e` | Env-1 sensing trajectory and error. `--env 2\|3\|4`: that env from CIR, metrics only (no plot) | 10–30 min (Env-1); 10–25 min extra env |
-| Fig. 14(d) | `14d` | HAR confusion matrices | < 1 min to plot |
+| Fig. 14(d) | `14d` | HAR confusion matrices (CPU `--eval` of packed checkpoints on `4.mat`) | 2–8 min |
 
-`--all` is about 1–3 hours on CPU. Optional GPU retrain of Fig. 14(d) is
-30–60 minutes (see §5).
+`--all` is about 1–3 hours on CPU. Fig. 14(d) default is checkpoint eval
+(no GPU). Retrain is optional and requires a local CUDA rebuild (see §5).
 
 ---
 
@@ -132,30 +133,38 @@ is expected; the relative ordering and the qualitative claims should hold.
 | 3 | 878 | 10.0 cm | 23.0 cm | 15.2 cm |
 | 4 | 1739 | 7.4 cm | 16.6 cm | 10.5 cm |
 
-**Fig. 14(d)** from the provided confusion matrices: RD 0.51, RD+RA 0.84, RD+RA+RE 0.99.
-Optional retrain uses the same file split (`seed=42`: train `1,2,5,6` / val `3` / test `4`)
-and preserves RD < RD+RA < RD+RA+RE.
+**Fig. 14(d)** CPU `--eval` of the packed checkpoints on test file `4.mat`:
+RD 0.51, RD+RA 0.84, RD+RA+RE 0.99.
+Same file split (`seed=42`: train `1,2,5,6` / val `3` / test `4`).
 Labels: `bow`, `slap_L`, `slap_R`, `smash`, `volleyball`.
+`FIGURE14D_TRAIN=0` plots the packed confusion matrices without running the model.
 
 ---
 
 ## 5. Optional: retrain Fig. 14(d)
 
+Default reproduction is CPU eval (no GPU image on Docker Hub):
+
 ```bash
-docker pull whatcanisay/ultralego-ae:gpu
+docker run --rm -v "$PWD/outputs:/artifact/outputs" \
+  whatcanisay/ultralego-ae:cpu \
+  python regenerate_all.py --only 14d --eval
+```
+
+To retrain, rebuild a CUDA image from this repo (all six `filtered/*.mat`
+must be copied into the image: comment out the `Figure14d/filtered/1.mat`
+… `6.mat` lines in `.dockerignore`, keep `4.mat` either way):
+
+```bash
+docker build --platform linux/amd64 --build-arg USE_CUDA=1 \
+  -t whatcanisay/ultralego-ae:gpu .
 docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
   -v "$PWD/outputs:/artifact/outputs" whatcanisay/ultralego-ae:gpu \
   python regenerate_all.py --only 14d
 ```
 
-Or build the CUDA image locally:
-
-```bash
-docker build --platform linux/amd64 --build-arg USE_CUDA=1 \
-  -t whatcanisay/ultralego-ae:gpu .
-```
-
-CPU retrain (slow): omit `--gpus all` and the CUDA build argument.
+Retrain uses the same file split and should keep RD < RD+RA < RD+RA+RE.
+Numbers may differ slightly from the packed checkpoints.
 
 ---
 
@@ -163,8 +172,10 @@ CPU retrain (slow): omit `--gpus all` and the CUDA build argument.
 
 ```
 curve_raw_npy/<figure>/<curve>/raw.npz   # packed CIR / samples
-Figure14d/filtered/{1..6}.mat            # HAR RD/RA/RE maps
-Figure14d/cms/*.npy                      # test confusion matrices
+Figure14d/checkpoints/*.pth              # paper HAR weights (CPU --eval)
+Figure14d/filtered/4.mat                 # HAR test maps (CPU image)
+Figure14d/filtered/{1..6}.mat            # all maps; needed only to retrain
+Figure14d/cms/*.npy                      # packed test confusion matrices
 ```
 
 ```python

@@ -1,0 +1,86 @@
+{
+  "modalities": [
+    "rd",
+    "ra",
+    "re"
+  ],
+  "split_mode": "file",
+  "best_epoch": 15,
+  "best_val_acc_during_training": 0.8523489932885906,
+  "final_val_loss": 0.47080784751064825,
+  "final_val_acc": 0.8523489932885906,
+  "final_test_loss": 0.04841694464903104,
+  "final_test_acc": 0.9898305084745763,
+  "action_list": [
+    "bow",
+    "slam_L",
+    "slam_R",
+    "smash",
+    "volleyball"
+  ],
+  "split_info": {
+    "train_files": [
+      "activity_rd_ra_re_new_ruofeng.mat",
+      "activity_rd_ra_re_new_moyan.mat",
+      "activity_rd_ra_re_new2_moyan.mat",
+      "activity_rd_ra_re_new2_fangwei.mat"
+    ],
+    "val_files": [
+      "activity_rd_ra_re_new2_ruofeng.mat"
+    ],
+    "test_files": [
+      "activity_rd_ra_re_new_fangwei.mat"
+    ]
+  },
+  "train_num_files": 4,
+  "val_num_files": 1,
+  "test_num_files": 1,
+  "train_num_samples": 2371,
+  "val_num_samples": 298,
+  "test_num_samples": 295,
+  "stats": {
+    "rd_mean": 1.6962517499923706,
+    "rd_std": 0.7965005040168762,
+    "ra_mean": 4.222386360168457,
+    "ra_std": 0.769874095916748,
+    "re_mean": 4.117665767669678,
+    "re_std": 0.6619197130203247
+  },
+  "val_effective_class_indices": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "val_effective_class_names": [
+    "bow",
+    "slam_L",
+    "slam_R",
+    "smash",
+    "volleyball"
+  ],
+  "test_effective_class_indices": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "test_effective_class_names": [
+    "bow",
+    "slam_L",
+    "slam_R",
+    "smash",
+    "volleyball"
+  ],
+  "per_subject_test_accuracy": {
+    "fangwei": 0.9898305084745763
+  },
+  "checkpoint_path": "./runs_multi\\rd+ra+re_file_20260309_205507_best.pth",
+  "tensorboard_dir": "./runs_multi\\tensorboard\\rd+ra+re_file_20260309_205507",
+  "val_cm_effective_path": "./runs_multi\\rd+ra+re_file_20260309_205507_val_cm_effective.npy",
+  "test_cm_effective_path": "./runs_multi\\rd+ra+re_file_20260309_205507_test_cm_effective.npy",
+  "val_test_cm_side_by_side_png": "./runs_multi\\rd+ra+re_file_20260309_205507_val_test_cm_side_by_side.png",
+  "val_test_cm_side_by_side_normalized_png": "./runs_multi\\rd+ra+re_file_20260309_205507_val_test_cm_side_by_side_normalized.png"
+}

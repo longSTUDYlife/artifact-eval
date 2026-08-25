@@ -87,7 +87,7 @@ CATALOG = [
     {
         "id": "Figure14d",
         "aliases": ("14d", "figure14d"),
-        "label": "Fig. 14(d) HAR confusion matrices (packed cms; set FIGURE14D_TRAIN=1 to retrain)",
+        "label": "Fig. 14(d) HAR CMs (CPU --eval of packed checkpoints; FIGURE14D_TRAIN=1 to retrain)",
         "outputs": ("figure14d.pdf", "figure14d.png"),
     },
 ]
@@ -176,10 +176,10 @@ def run_figure13e(env: int = 1) -> None:
     mod.run_env(env, data_dir=ROOT / "Figure13e")
 
 
-def run_figure14d() -> None:
+def run_figure14d(mode: str | None = None) -> None:
     sys.path.insert(0, str(ROOT / "Figure14d"))
     from train_and_plot import regenerate_figure14d
-    regenerate_figure14d(ROOT / "Figure14d")
+    regenerate_figure14d(ROOT / "Figure14d", mode=mode)
 
 
 RUNNERS = {
@@ -205,6 +205,8 @@ def print_catalog() -> None:
     print("  python regenerate_all.py --only 10c,13e")
     print("  python regenerate_all.py --only 13a --env 2")
     print("  python regenerate_all.py --only 13e --env 4")
+    print("  python regenerate_all.py --only 14d --eval")
+    print("  python regenerate_all.py --eval")
     print("  python regenerate_all.py --all")
     print()
     print("Fig. 13 default is Env-1 (scatter / trajectory).")
@@ -212,7 +214,9 @@ def print_catalog() -> None:
     print("prints N / median / 90th / RMSE; no PDF.")
     print()
     print("Outputs are copied to /artifact/outputs (mount a host folder).")
-    print("Figure14d retrain: FIGURE14D_TRAIN=1 python regenerate_all.py --only 14d")
+    print("Fig. 14(d): python regenerate_all.py --only 14d --eval")
+    print("  CPU: load packed checkpoints, test 4.mat.")
+    print("  Retrain: local CUDA rebuild (see README §5), then FIGURE14D_TRAIN=1.")
 
 
 def resolve_ids(tokens: list[str]) -> list[dict]:
@@ -238,7 +242,7 @@ def resolve_ids(tokens: list[str]) -> list[dict]:
 EXTRA_ENV_FIGURES = {"Figure13a", "Figure13e"}
 
 
-def run_items(items: list[dict], env: int = 1) -> int:
+def run_items(items: list[dict], env: int = 1, eval_14d: bool = False) -> int:
     if env != 1:
         bad = [it["id"] for it in items if it["id"] not in EXTRA_ENV_FIGURES]
         if bad:
@@ -254,7 +258,10 @@ def run_items(items: list[dict], env: int = 1) -> int:
             print(f"Env-{env}: no PDF (metrics printed above).")
         else:
             print(item["label"])
-            RUNNERS[item["id"]]()
+            if item["id"] == "Figure14d":
+                RUNNERS[item["id"]]("eval" if eval_14d else None)
+            else:
+                RUNNERS[item["id"]]()
             _copy_outputs(item)
     if env == 1:
         print("\nDone. PDFs/PNGs are under outputs/")
@@ -305,15 +312,28 @@ def main(argv: list[str] | None = None) -> int:
         choices=(1, 2, 3, 4),
         help="Fig. 13 only: 1=Env-1 plot (default); 2/3/4=recompute that env, print metrics, no plot",
     )
+    parser.add_argument(
+        "--eval",
+        action="store_true",
+        help="Fig. 14(d): load packed checkpoints and test 4.mat on CPU (no training)",
+    )
     args = parser.parse_args(argv)
+
+    if args.eval and args.env != 1:
+        raise SystemExit("--eval cannot be combined with --env 2|3|4")
 
     if args.all:
         if args.env != 1:
             raise SystemExit("--env 2|3|4 cannot be combined with --all (Env-1 figures only)")
-        return run_items(list(CATALOG), env=1)
+        return run_items(list(CATALOG), env=1, eval_14d=args.eval)
+    if args.eval and not args.only:
+        return run_items(resolve_ids(["14d"]), env=1, eval_14d=True)
     if args.only:
         tokens = [t for t in args.only.replace(" ", ",").split(",") if t]
-        return run_items(resolve_ids(tokens), env=args.env)
+        items = resolve_ids(tokens)
+        if args.eval and not any(it["id"] == "Figure14d" for it in items):
+            raise SystemExit("--eval is for Fig. 14(d). Use --only 14d --eval (or just --eval).")
+        return run_items(items, env=args.env, eval_14d=args.eval)
     if args.list or not sys.stdin.isatty():
         print_catalog()
         return 0

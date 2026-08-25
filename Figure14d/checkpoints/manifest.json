@@ -1,0 +1,34 @@
+{
+  "split_mode": "file",
+  "seed": 42,
+  "val_ratio": 0.15,
+  "test_ratio": 0.15,
+  "test_file": "4.mat",
+  "source": "20260309 file-split runs that produced Figure 14(d)",
+  "panels": [
+    {
+      "key": "rd",
+      "title": "RD",
+      "ckpt": "rd_file_best.pth",
+      "results": "rd_file_results.json",
+      "modalities": "rd",
+      "paper_acc": 0.511864406779661
+    },
+    {
+      "key": "rd+ra",
+      "title": "RD + RA",
+      "ckpt": "rd+ra_file_best.pth",
+      "results": "rd+ra_file_results.json",
+      "modalities": "rd,ra",
+      "paper_acc": 0.8372881355932204
+    },
+    {
+      "key": "rd+ra+re",
+      "title": "RD + RA + RE",
+      "ckpt": "rd+ra+re_file_best.pth",
+      "results": "rd+ra+re_file_results.json",
+      "modalities": "rd,ra,re",
+      "paper_acc": 0.9898305084745763
+    }
+  ]
+}

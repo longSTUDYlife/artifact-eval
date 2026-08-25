@@ -28,9 +28,15 @@ Figure11/localization/20260805/
 # ULoc vendor venv (~250MB)
 Figure11/uloc/processing/venv/
 
-# Figure14d training artifacts (weights are produced at run time)
+# Figure14d: CPU image evals packed checkpoints on 4.mat.
+# Train mats (1,2,3,5,6) are only needed if you rebuild to retrain.
+Figure14d/filtered/1.mat
+Figure14d/filtered/2.mat
+Figure14d/filtered/3.mat
+Figure14d/filtered/5.mat
+Figure14d/filtered/6.mat
 Figure14d/runs/
-Figure14d/**/*.pth
+Figure14d/runs/**
 Figure14d/**/tensorboard/
 
 # Local CUDA wheel cache (optional maintainer download; not part of the artifact)

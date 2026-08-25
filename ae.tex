@@ -159,15 +159,19 @@ Docker~20+ with BuildKit. The image is \texttt{python:3.11-slim} with
 
 \begin{itemize}
   \item Packed CIR: \path{curve_raw_npy/} (one \texttt{raw.npz} per curve).
-  \item HAR RD/RA/RE maps: \path{Figure14d/filtered/}
-        (\texttt{1.mat}--\texttt{6.mat}; seed~42; train 1,2,5,6; val~3; test~4).
-  \item HAR test confusion matrices: \path{Figure14d/cms/}.
+  \item HAR checkpoints: \path{Figure14d/checkpoints/}
+        (RD / RD+RA / RD+RA+RE file-split weights).
+  \item HAR test maps: \path{Figure14d/filtered/4.mat}
+        (CPU eval). Files \texttt{1.mat}--\texttt{6.mat} are in the repo
+        for optional retrain (seed~42; train 1,2,5,6; val~3; test~4).
+  \item HAR packed confusion matrices: \path{Figure14d/cms/}.
 \end{itemize}
 
 \subsubsection{Models}
 
-HAR uses a CNN+LSTM. Fig.~14(d) is reproduced from the provided test
-confusion matrices; retraining is optional.
+HAR uses a CNN+LSTM. Fig.~14(d) is reproduced by loading the packed
+checkpoints and running test inference on \texttt{4.mat} (CPU;
+\texttt{--eval}). Retraining is optional and requires a local CUDA rebuild.
 
 \subsection{Installation}
 
@@ -181,8 +185,8 @@ docker run --rm -it \
 
 The container prints a figure catalog. A local CPU rebuild is optional
 (\texttt{docker build --platform linux/amd64}).
-The CUDA image (\texttt{whatcanisay/ultralego-ae:gpu}, $\approx$8\,GB)
-is needed only to retrain Fig.~14(d).
+Fig.~14(d) runs on this CPU image (\texttt{--eval}). A CUDA rebuild is
+needed only if you want to retrain HAR.
 
 \subsection{Experiment workflow}
 
@@ -194,6 +198,7 @@ python regenerate_all.py --only 10ab
 python regenerate_all.py --only 10c,13e
 python regenerate_all.py --only 13a --env 2
 python regenerate_all.py --only 13e --env 4
+python regenerate_all.py --only 14d --eval
 python regenerate_all.py --all
 \end{lstlisting}
 
@@ -227,7 +232,7 @@ Fig.~11       & \figflag{11}   & phase quality \\
 Fig.~12       & \figflag{12}   & SCR dynamic range \\
 Fig.~13(a)(b) & \figflag{13a}  & Env-1 scatter. \texttt{--env 2/3/4}: that env, metrics only \\
 Fig.~13(e)(f) & \figflag{13e}  & Env-1 trajectory. \texttt{--env 2/3/4}: that env, metrics only \\
-Fig.~14(d)    & \figflag{14d}  & HAR confusion matrices \\
+Fig.~14(d)    & \figflag{14d}  & HAR CMs (CPU \texttt{--eval}) \\
 \bottomrule
 \end{tabularx}
 }
@@ -245,7 +250,7 @@ Fig.~14(d)    & \figflag{14d}  & HAR confusion matrices \\
 \figflag{12}   & $<$1\,min \\
 \figflag{13a}  & 15--40\,min \\
 \figflag{13e}  & 10--30\,min \\
-\figflag{14d}  & $<$1\,min to plot; 30--60\,min GPU to retrain \\
+\figflag{14d}  & 2--8\,min CPU eval of packed checkpoints \\
 \figflag{--all}& about 1--3\,h on CPU \\
 \bottomrule
 \end{tabularx}
@@ -298,17 +303,17 @@ Fig.~14(d)
 }
 
 \vspace{0.35em}
-Fig.~14(d) from the provided confusion matrices matches the paper.
-Optional GPU retrain uses the same file split and preserves
-RD $<$ RD+RA $<$ RD+RA+RE. Figure labels:
+Fig.~14(d) from packed checkpoints on \texttt{4.mat} matches the paper
+(CPU \texttt{--eval}). Optional retrain: local CUDA rebuild, same file
+split, preserves RD $<$ RD+RA $<$ RD+RA+RE. Figure labels:
 \texttt{bow}, \texttt{slap\_L}, \texttt{slap\_R}, \texttt{smash},
 \texttt{volleyball}.
 
 \begin{lstlisting}
-docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
+docker run --rm \
   -v "$PWD/outputs:/artifact/outputs" \
-  whatcanisay/ultralego-ae:gpu \
-  python regenerate_all.py --only 14d
+  whatcanisay/ultralego-ae:cpu \
+  python regenerate_all.py --only 14d --eval
 \end{lstlisting}
 
 \subsection{Experiment customization}
@@ -317,7 +322,10 @@ docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
 Fig.~13 defaults to Env-1 plots. \texttt{--env 2}, \texttt{3}, or \texttt{4}
 recomputes that environment from the packed kept trials and prints
 $N$ / median / 90th / RMSE (no PDF).
-To retrain HAR, set \texttt{FIGURE14D\_TRAIN=1} (GPU recommended).
+To retrain HAR, rebuild a CUDA image locally
+(\texttt{docker build --build-arg USE_CUDA=1}; include all six
+\texttt{filtered/*.mat} in the image) and set
+\texttt{FIGURE14D\_TRAIN=1}.
 
 \subsection{Methodology}
 

@@ -8,20 +8,20 @@ Split: file, seed=42, val_ratio=0.15, test_ratio=0.15
 
 Action names in .mat are slam_L / slam_R; figure labels slap_L / slap_R.
 
-Plot only (packed test CMs, no GPU):
-  python plot_figure14d.py
+CPU eval of packed checkpoints (default AE path, no GPU):
+  python regenerate_all.py --only 14d --eval
+  python train_and_plot.py
   paper acc: RD 0.5119 / RD+RA 0.8373 / RD+RA+RE 0.9898
+  weights: checkpoints/{rd,rd+ra,rd+ra+re}_file_best.pth
+  test maps: filtered/4.mat  (CPU Docker image ships this file only)
 
-Retrain then plot (PyTorch; GPU recommended):
-  FIGURE14D_TRAIN=1 python train_and_plot.py
-  python plot_figure14d.py --from_runs runs
+Plot packed cms without running the network:
+  FIGURE14D_TRAIN=0 python train_and_plot.py
 
-Docker (from Figures/Done):
-  # GPU retrain (linux/amd64)
-  docker build --platform linux/amd64 --build-arg USE_CUDA=1 -t done-figures-artifact .
+Retrain then plot (needs all 6 .mat; rebuild CUDA image locally):
+  # comment out Figure14d/filtered/{1,2,3,5,6}.mat in .dockerignore
+  docker build --platform linux/amd64 --build-arg USE_CUDA=1 \
+    -t whatcanisay/ultralego-ae:gpu .
   docker run --gpus all -e FIGURE14D_TRAIN=1 --rm \
-    -v "$PWD/outputs:/artifact/outputs" done-figures-artifact
-
-  # CPU retrain (slow; works on Mac ARM image too)
-  docker run -e FIGURE14D_TRAIN=1 --rm \
-    -v "$PWD/outputs:/artifact/outputs" done-figures-artifact
+    -v "$PWD/outputs:/artifact/outputs" whatcanisay/ultralego-ae:gpu \
+    python regenerate_all.py --only 14d

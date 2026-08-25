@@ -26,7 +26,5 @@ Figure11/localization/20260805/
 Figure11/uloc/processing/venv/
 Figure11/uloc/.git/
 
-# Training leftovers
+# Training leftovers (packaged paper weights: Figure14d/checkpoints/)
 Figure14d/runs/
-Figure14d/**/*.pth
-Figure14d/**/tensorboard/
