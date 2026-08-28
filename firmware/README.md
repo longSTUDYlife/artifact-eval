@@ -1,9 +1,8 @@
-# Firmware (optional)
+# Firmware
 
-This folder is **not** used to regenerate the paper figures. Docker
-and `regenerate_all.py` do not read it. It is the host-side capture
-path (radino32 DW1000 modules) for anyone who wants to rebuild the
-testbed.
+Host-side capture path for radino32 DW1000 modules. Modules are not
+shipped here; buy them from In-Circuit:
+https://wiki.in-circuit.de/index.php5?title=radino32_DW1000
 
 Contents:
 

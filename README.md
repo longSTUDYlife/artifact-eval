@@ -224,6 +224,7 @@ cir = d["cir"]  # [port, angle, trial, frame, tap]
 
 `firmware/` is the radino32 testbed path (modified In-Circuit core
 `1.0.3/`, `dw1000_ranging_demo.ino`, `MultiPort_CIR_Logger.py`).
-It is **not** used to regenerate figures. Setup: install the official
-Arduino package, then replace `1.0.3`; roles and serial logging are
-in [`firmware/README.md`](firmware/README.md).
+Hardware is not included: buy [radino32 DW1000](https://wiki.in-circuit.de/index.php5?title=radino32_DW1000)
+modules from In-Circuit if you want to run the radios. Setup: install
+the official Arduino package, then replace `1.0.3`; roles and serial
+logging are in [`firmware/README.md`](firmware/README.md).
