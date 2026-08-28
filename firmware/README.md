@@ -10,7 +10,7 @@ Contents:
 | Path | What it is |
 |------|------------|
 | `1.0.3/` | Modified In-Circuit Arduino core (STM32L1 / radino32), used in the paper |
-| `dw1000_ranging_demo.ino` | Sketch flashed to each module (Anchor / Tag / Listener) |
+| `dw1000_ranging_demo.ino` | Sketch flashed to each module (Synchronizer / Tag / Beamformer) |
 | `MultiPort_CIR_Logger.py` | PC logger: multi-port CIR capture and CSV recording |
 
 The sketch and logger match
@@ -133,13 +133,15 @@ Configure the device role with two flags at the top of the file:
 
 | WE_ARE_ANCHOR | WE_ARE_LISTENER | Role | Description | Sensing | Localization |
 |---------------|-----------------|------|-------------|---------|--------------|
-| `1` | `1` | **Listener** | Passively listens to ranging packets and outputs CIR data | yes | yes |
-| `1` | `0` | **Anchor** | Initiator that sends ranging requests to Tags | yes | yes |
-| `0` | `0` | **Tag** | Responder that replies to Anchor ranging requests | no | yes |
+| `1` | `1` | **Beamformer** | Passively listens to ranging packets and outputs CIR data | yes | yes |
+| `1` | `0` | **Synchronizer** | Initiator that sends ranging requests to Tags | yes | yes |
+| `0` | `0` | **Tag** | Responder that replies to Synchronizer ranging requests | no | yes |
+
+The sketch still uses the original `#define` names (`WE_ARE_ANCHOR`, `WE_ARE_LISTENER`); the roles above are the paper names.
 
 ```cpp
-#define WE_ARE_ANCHOR    1    // 1 = Anchor/Listener, 0 = Tag
-#define WE_ARE_LISTENER  1    // 1 = Listener, 0 = normal ranging
+#define WE_ARE_ANCHOR    1    // 1 = Synchronizer/Beamformer, 0 = Tag
+#define WE_ARE_LISTENER  1    // 1 = Beamformer, 0 = normal ranging
 #define MY_SHORT_ADDRESS  0x2345
 #define DW_TX_POWER      33.5     // optional; 0 to 33.5 dBm, step 0.5
 #define PIN_LED    13
@@ -147,7 +149,7 @@ Configure the device role with two flags at the top of the file:
 #define PIN_LED_2  17
 ```
 
-Listener (CIR collection):
+Beamformer (CIR collection):
 
 ```cpp
 #define WE_ARE_ANCHOR    1
@@ -155,5 +157,5 @@ Listener (CIR collection):
 #define MY_SHORT_ADDRESS 0x2345
 ```
 
-Each device needs a unique `MY_SHORT_ADDRESS`. One Anchor can handle
+Each device needs a unique `MY_SHORT_ADDRESS`. One Synchronizer can handle
 up to 6 Tags. Respect local wireless regulations when setting TX power.
