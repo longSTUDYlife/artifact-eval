@@ -1,0 +1,24 @@
+#!/bin/sh
+
+
+set -e
+
+
+# We're expecting exactly four parameters.
+if [ 4 -ne $# ]
+then
+    echo "Usage $0 DEVICE DUMMY_ALT_ID DUMMY_USB_ID BINFILE" >&2
+    exit 1
+fi
+
+
+BASE_DIR=`dirname $0`
+
+BAUD=230400
+BINFILE=$4
+DEVICE=/dev/$1
+FLASHER=$BASE_DIR/stm32flash
+TARGET_ADDRESS=0x08000000
+
+
+$FLASHER -g $TARGET_ADDRESS -b $BAUD -w $BINFILE $DEVICE

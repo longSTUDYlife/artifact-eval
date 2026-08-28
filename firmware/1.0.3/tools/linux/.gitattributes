@@ -1,0 +1,4 @@
+# Declare files that need special line endings
+maple_upload text eol=lf
+serial_upload text eol=lf
+upload_router text eol=lf

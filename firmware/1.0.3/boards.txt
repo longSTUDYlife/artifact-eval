@@ -1,0 +1,58 @@
+# Radino32
+
+##############################################################
+radino32usb.name=Radino32 USB-Load
+
+radino32usb.upload.tool=maple_upload
+radino32usb.upload.tool_ver=1.0.3
+radino32usb.upload.protocol=maple_dfu
+radino32usb.upload.maximum_size=262144
+radino32usb.upload.use_1200bps_touch=false
+radino32usb.upload.file_type=bin
+radino32usb.upload.ram.maximum_size=32768
+radino32usb.upload.flash.maximum_size=262144
+radino32usb.upload.usbID=0483:df11
+radino32usb.upload.altID=0
+radino32usb.upload.auto_reset=true
+
+radino32usb.build.mcu=cortex-m3
+radino32usb.build.f_cpu=24000000L
+radino32usb.build.board=RADINO32
+radino32usb.build.core=radino32
+radino32usb.build.extra_flags=-DMCU_STM32F103CB -mthumb  -march=armv7-m -D__STM32L1__
+radino32usb.build.ldscript=ld/flash.ld
+radino32usb.build.variant=radino32
+radino32usb.build.variant_system_lib=libopenstm32l1.a
+radino32usb.build.vect=VECT_TAB_BASE
+radino32usb.build.error_led_port=GPIOB
+radino32usb.build.error_led_pin=1
+radino32usb.build.gcc_ver=gcc-arm-none-eabi-4.8.3-2014q1
+
+##############################################################
+radino32uart.name=Radino32 UART-Load
+
+radino32uart.upload.tool=serial_upload
+radino32uart.upload.tool_ver=1.0.3
+radino32uart.upload.protocol=maple_serial
+radino32uart.upload.maximum_size=262144
+radino32uart.upload.page_count=0x400
+radino32uart.upload.use_1200bps_touch=false
+radino32uart.upload.file_type=bin
+radino32uart.upload.ram.maximum_size=32768
+radino32uart.upload.flash.maximum_size=262144
+radino32uart.upload.usbID=0483:df11
+radino32uart.upload.altID=0
+radino32uart.upload.auto_reset=true
+
+radino32uart.build.mcu=cortex-m3
+radino32uart.build.f_cpu=24000000L
+radino32uart.build.board=RADINO32
+radino32uart.build.core=radino32
+radino32uart.build.extra_flags=-DMCU_STM32F103CB -mthumb  -march=armv7-m -D__STM32L1__
+radino32uart.build.ldscript=ld/flash.ld
+radino32uart.build.variant=radino32
+radino32uart.build.variant_system_lib=libopenstm32l1.a
+radino32uart.build.vect=VECT_TAB_BASE
+radino32uart.build.error_led_port=GPIOB
+radino32uart.build.error_led_pin=1
+radino32uart.build.gcc_ver=gcc-arm-none-eabi-4.8.3-2014q1

@@ -206,10 +206,12 @@ Figure14d/cms/*.npy                      # stored Fig. 14(d) confusion matrices
 curve_raw_npy/Figure13a/env{2,3,4}/      # Fig. 13 extra environments
 curve_raw_npy/Figure13e/env{2,3,4}/
 3d_model/Shell.STL                       # 3D-printed module shell (~47×48×47 mm)
+firmware/                                # radino32 core + sketch + CIR logger
 ```
 
-The STL is for inspecting or printing the module housing. Figure
-scripts do not use it.
+The STL is for inspecting or printing the module housing. `firmware/`
+is the optional testbed path (Arduino + serial logger). Figure scripts
+do not use either. See `firmware/README.md`.
 
 ```python
 import numpy as np

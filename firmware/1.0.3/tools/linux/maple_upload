@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -e
+
+if [ $# -lt 4 ]; then
+    echo "Usage: $0 $# <dummy_port> <altID> <usbID> <binfile>" >&2
+    exit 1
+fi
+dummy_port=$1; altID=$2; usbID=$3; binfile=$4
+
+DFU_UTIL=/usr/bin/dfu-util
+DFU_SUFFIX=/usr/bin/dfu-suffix
+
+if [ ! -x ${DFU_UTIL} ]; then
+    echo "$0: error: cannot find ${DFU_UTIL}" >&2
+    exit 2
+fi
+
+${DFU_SUFFIX} -a ${binfile} -v 0483 -p df11
+
+${DFU_UTIL} -t 1024 -s 0x08000000:leave -d ${usbID} -a ${altID} -D ${binfile}
