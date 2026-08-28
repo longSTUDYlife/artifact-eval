@@ -209,12 +209,21 @@ curve_raw_npy/Figure13e/env{2,3,4}/
 firmware/                                # radino32 core + sketch + CIR logger
 ```
 
-The STL is for inspecting or printing the module housing. `firmware/`
-is the optional testbed path (Arduino + serial logger). Figure scripts
-do not use either. See `firmware/README.md`.
+The STL is for inspecting or printing the module housing. Figure
+scripts do not use it.
 
 ```python
 import numpy as np
 d = np.load("curve_raw_npy/Figure10c/8RX-ULA/raw.npz")
 cir = d["cir"]  # [port, angle, trial, frame, tap]
 ```
+
+---
+
+## 7. Firmware (optional)
+
+`firmware/` is the radino32 testbed path (modified In-Circuit core
+`1.0.3/`, `dw1000_ranging_demo.ino`, `MultiPort_CIR_Logger.py`).
+It is **not** used to regenerate figures. Setup: install the official
+Arduino package, then replace `1.0.3`; roles and serial logging are
+in [`firmware/README.md`](firmware/README.md).
